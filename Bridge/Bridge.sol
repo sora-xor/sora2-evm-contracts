@@ -144,7 +144,7 @@ contract Bridge {
         bytes32[] memory s
     )
     public
-    shouldBeInitialized shouldBePreparedForMigration {
+    shouldBeInitialized shouldNotBePreparedForMigration {
         require(preparedForMigration_ == false);
         require(address(this) == thisContractAddress);
         require(checkSignatures(keccak256(abi.encodePacked(thisContractAddress, salt, _networkId)),
