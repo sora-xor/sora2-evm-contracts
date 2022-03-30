@@ -188,6 +188,8 @@ contract Bridge {
         bytes32[] memory r,
         bytes32[] memory s
     ) public shouldBeInitialized shouldNotBePreparedForMigration {
+        require(used[salt] == false);
+        used[salt] = true;
         require(preparedForMigration_ == false);
         require(address(this) == thisContractAddress);
         require(
@@ -230,6 +232,8 @@ contract Bridge {
         bytes32[] memory r,
         bytes32[] memory s
     ) public shouldBeInitialized shouldBePreparedForMigration {
+        require(used[salt] == false);
+        used[salt] = true;
         require(address(this) == thisContractAddress);
         require(
             checkSignatures(
@@ -254,7 +258,13 @@ contract Bridge {
         }
         for (uint256 i = 0; i < erc20nativeTokens.length; i++) {
             IERC20 token = IERC20(erc20nativeTokens[i]);
-            token.transfer(newContractAddress, token.balanceOf(address(this)));
+            require(
+                token.transfer(
+                    newContractAddress,
+                    token.balanceOf(address(this))
+                ),
+                "Transfer failed"
+            );
         }
         Bridge(newContractAddress).receivePayment{
             value: address(this).balance
@@ -504,7 +514,7 @@ contract Bridge {
         } else {
             IERC20 coin = IERC20(tokenAddress);
             // untrusted call, relies on provided cryptographic proof
-            coin.transfer(to, amount);
+            require(coin.transfer(to, amount), "Transfer failed");
         }
         emit Withdrawal(txHash);
     }
