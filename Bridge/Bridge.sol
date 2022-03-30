@@ -58,10 +58,16 @@ contract Bridge {
      */
     constructor(
         address[] memory initialPeers,
+        address[] memory sidechainTokenAddresses,
+        bytes32[] memory sidechainAssetIds,
         address addressVAL,
         address addressXOR,
         bytes32 networkId
     ) {
+        require(
+            sidechainAssetIds.length == sidechainTokenAddresses.length,
+            "Length mismatch"
+        );
         for (uint8 i = 0; i < initialPeers.length; i++) {
             addPeer(initialPeers[i]);
         }
@@ -73,6 +79,13 @@ contract Bridge {
 
         acceptedEthTokens[_addressXOR] = true;
         acceptedEthTokens[_addressVAL] = true;
+        for (uint8 i = 0; i < sidechainTokenAddresses.length; i++) {
+            address tokenAddress = sidechainTokenAddresses[i];
+            bytes32 assetId = sidechainAssetIds[i];
+            _sidechainTokens[assetId] = tokenAddress;
+            _sidechainTokensByAddress[tokenAddress] = assetId;
+            _sidechainTokenAddressArray.push(tokenAddress);
+        }
     }
 
     modifier shouldBeInitialized() {
@@ -136,6 +149,7 @@ contract Bridge {
         bytes32[] memory s
     ) public shouldBeInitialized {
         require(used[txHash] == false);
+        used[txHash] = true;
         require(acceptedEthTokens[newToken] == false);
         require(
             checkSignatures(
@@ -156,7 +170,6 @@ contract Bridge {
             "Peer signatures are invalid"
         );
         acceptedEthTokens[newToken] = true;
-        used[txHash] = true;
     }
 
     /**
@@ -180,7 +193,12 @@ contract Bridge {
         require(
             checkSignatures(
                 keccak256(
-                    abi.encodePacked(thisContractAddress, salt, _networkId)
+                    abi.encodePacked(
+                        "prepareMigration",
+                        thisContractAddress,
+                        salt,
+                        _networkId
+                    )
                 ),
                 v,
                 r,
@@ -268,6 +286,7 @@ contract Bridge {
         bytes32[] memory s
     ) public shouldBeInitialized {
         require(used[txHash] == false);
+        used[txHash] = true;
         require(
             checkSignatures(
                 keccak256(
@@ -299,7 +318,6 @@ contract Bridge {
         _sidechainTokens[sidechainAssetId] = tokenAddress;
         _sidechainTokensByAddress[tokenAddress] = sidechainAssetId;
         _sidechainTokenAddressArray.push(tokenAddress);
-        used[txHash] = true;
     }
 
     /**
@@ -375,9 +393,17 @@ contract Bridge {
         bytes32[] memory s
     ) public shouldBeInitialized returns (bool) {
         require(used[txHash] == false);
+        used[txHash] = true;
         require(
             checkSignatures(
-                keccak256(abi.encodePacked(newPeerAddress, txHash, _networkId)),
+                keccak256(
+                    abi.encodePacked(
+                        "addPeer",
+                        newPeerAddress,
+                        txHash,
+                        _networkId
+                    )
+                ),
                 v,
                 r,
                 s
@@ -386,7 +412,6 @@ contract Bridge {
         );
 
         addPeer(newPeerAddress);
-        used[txHash] = true;
         emit ChangePeers(newPeerAddress, false);
         return true;
     }
@@ -408,9 +433,17 @@ contract Bridge {
         bytes32[] memory s
     ) public shouldBeInitialized returns (bool) {
         require(used[txHash] == false);
+        used[txHash] = true;
         require(
             checkSignatures(
-                keccak256(abi.encodePacked(peerAddress, txHash, _networkId)),
+                keccak256(
+                    abi.encodePacked(
+                        "removePeer",
+                        peerAddress,
+                        txHash,
+                        _networkId
+                    )
+                ),
                 v,
                 r,
                 s
@@ -419,7 +452,6 @@ contract Bridge {
         );
 
         removePeer(peerAddress);
-        used[txHash] = true;
         emit ChangePeers(peerAddress, true);
         return true;
     }
@@ -446,6 +478,7 @@ contract Bridge {
         bytes32[] memory s
     ) public shouldBeInitialized {
         require(used[txHash] == false);
+        used[txHash] = true;
         require(
             checkSignatures(
                 keccak256(
@@ -466,12 +499,10 @@ contract Bridge {
         );
 
         if (tokenAddress == address(0)) {
-            used[txHash] = true;
             // untrusted transfer, relies on provided cryptographic proof
             to.transfer(amount);
         } else {
             IERC20 coin = IERC20(tokenAddress);
-            used[txHash] = true;
             // untrusted call, relies on provided cryptographic proof
             coin.transfer(to, amount);
         }
@@ -504,6 +535,7 @@ contract Bridge {
             "Sidechain asset is not registered"
         );
         require(used[txHash] == false);
+        used[txHash] = true;
         require(
             checkSignatures(
                 keccak256(
@@ -527,7 +559,6 @@ contract Bridge {
             _sidechainTokens[sidechainAssetId]
         );
         tokenInstance.mintTokens(to, amount);
-        used[txHash] = true;
         emit Withdrawal(txHash);
     }
 
