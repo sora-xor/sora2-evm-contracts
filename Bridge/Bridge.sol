@@ -1,14 +1,19 @@
-pragma solidity ^0.7.4;
-// "SPDX-License-Identifier: Apache License 2.0"
+// SPDX-License-Identifier: Apache 2.0
+
+pragma solidity ^0.8.0;
 
 import "./MasterToken.sol";
 import "./Ownable.sol";
 import "./ERC20Burnable.sol";
+import "./SafeERC20.sol";
+import "./EthTokenReciever.sol";
 
 /**
  * Provides functionality of the HASHI bridge
  */
-contract Bridge {
+contract Bridge is EthTokenReciever {
+    using SafeERC20 for IERC20;
+
     bool internal initialized_;
     bool internal preparedForMigration_;
 
@@ -60,6 +65,7 @@ contract Bridge {
         address[] memory initialPeers,
         address[] memory sidechainTokenAddresses,
         bytes32[] memory sidechainAssetIds,
+        address[] memory erc20Addresses,
         address addressVAL,
         address addressXOR,
         bytes32 networkId
@@ -68,7 +74,8 @@ contract Bridge {
             sidechainAssetIds.length == sidechainTokenAddresses.length,
             "Length mismatch"
         );
-        for (uint8 i = 0; i < initialPeers.length; i++) {
+        uint256 initialPeersCount = initialPeers.length;
+        for (uint256 i; i < initialPeersCount; i++) {
             addPeer(initialPeers[i]);
         }
         _addressXOR = addressXOR;
@@ -79,12 +86,17 @@ contract Bridge {
 
         acceptedEthTokens[_addressXOR] = true;
         acceptedEthTokens[_addressVAL] = true;
-        for (uint8 i = 0; i < sidechainTokenAddresses.length; i++) {
+        uint256 tokensCount = sidechainTokenAddresses.length;
+        for (uint256 i; i < tokensCount; i++) {
             address tokenAddress = sidechainTokenAddresses[i];
             bytes32 assetId = sidechainAssetIds[i];
             _sidechainTokens[assetId] = tokenAddress;
             _sidechainTokensByAddress[tokenAddress] = assetId;
             _sidechainTokenAddressArray.push(tokenAddress);
+        }
+        uint256 erc20TokensCount = erc20Addresses.length;
+        for (uint256 i; i < erc20TokensCount; i++) {
+            acceptedEthTokens[erc20Addresses[i]] = true;
         }
     }
 
@@ -123,7 +135,7 @@ contract Bridge {
     /*
     Used only for migration
     */
-    function receivePayment() external payable {}
+    function receivePayment() external payable override {}
 
     /**
      * Adds new token to whitelist.
@@ -147,10 +159,13 @@ contract Bridge {
         uint8[] memory v,
         bytes32[] memory r,
         bytes32[] memory s
-    ) public shouldBeInitialized {
-        require(used[txHash] == false);
+    ) external shouldBeInitialized {
+        require(used[txHash] == false, "txHash already used");
         used[txHash] = true;
-        require(acceptedEthTokens[newToken] == false);
+        require(
+            acceptedEthTokens[newToken] == false,
+            "ERC20 token is not whitelisted"
+        );
         require(
             checkSignatures(
                 keccak256(
@@ -187,11 +202,17 @@ contract Bridge {
         uint8[] memory v,
         bytes32[] memory r,
         bytes32[] memory s
-    ) public shouldBeInitialized shouldNotBePreparedForMigration {
-        require(used[salt] == false);
+    ) external shouldBeInitialized shouldNotBePreparedForMigration {
+        require(used[salt] == false, "txHash already used");
         used[salt] = true;
-        require(preparedForMigration_ == false);
-        require(address(this) == thisContractAddress);
+        require(
+            preparedForMigration_ == false,
+            "Bridge is not prepared for migration"
+        );
+        require(
+            address(this) == thisContractAddress,
+            "Bridge contract address mismatch"
+        );
         require(
             checkSignatures(
                 keccak256(
@@ -231,10 +252,13 @@ contract Bridge {
         uint8[] memory v,
         bytes32[] memory r,
         bytes32[] memory s
-    ) public shouldBeInitialized shouldBePreparedForMigration {
-        require(used[salt] == false);
+    ) external shouldBeInitialized shouldBePreparedForMigration {
+        require(used[salt] == false, "txHash already used");
         used[salt] = true;
-        require(address(this) == thisContractAddress);
+        require(
+            address(this) == thisContractAddress,
+            "Bridge contract address mismatch"
+        );
         require(
             checkSignatures(
                 keccak256(
@@ -252,21 +276,20 @@ contract Bridge {
             ),
             "Peer signatures are invalid"
         );
-        for (uint256 i = 0; i < _sidechainTokenAddressArray.length; i++) {
+        uint256 sidechainTokensCount = _sidechainTokenAddressArray.length;
+        for (uint256 i; i < sidechainTokensCount; i++) {
             Ownable token = Ownable(_sidechainTokenAddressArray[i]);
             token.transferOwnership(newContractAddress);
         }
-        for (uint256 i = 0; i < erc20nativeTokens.length; i++) {
+        uint256 erc20nativeTokensCount = erc20nativeTokens.length;
+        for (uint256 i; i < erc20nativeTokensCount; i++) {
             IERC20 token = IERC20(erc20nativeTokens[i]);
-            require(
-                token.transfer(
-                    newContractAddress,
-                    token.balanceOf(address(this))
-                ),
-                "Transfer failed"
+            token.safeTransfer(
+                newContractAddress,
+                token.balanceOf(address(this))
             );
         }
-        Bridge(newContractAddress).receivePayment{
+        EthTokenReciever(newContractAddress).receivePayment{
             value: address(this).balance
         }();
         initialized_ = false;
@@ -294,8 +317,8 @@ contract Bridge {
         uint8[] memory v,
         bytes32[] memory r,
         bytes32[] memory s
-    ) public shouldBeInitialized {
-        require(used[txHash] == false);
+    ) external shouldBeInitialized {
+        require(used[txHash] == false, "txHash already used");
         used[txHash] = true;
         require(
             checkSignatures(
@@ -336,7 +359,7 @@ contract Bridge {
      * @param to destionation address on sidechain.
      */
     function sendEthToSidechain(bytes32 to)
-        public
+        external
         payable
         shouldBeInitialized
         shouldNotBePreparedForMigration
@@ -378,10 +401,7 @@ contract Bridge {
                 acceptedEthTokens[tokenAddress],
                 "The Token is not accepted for transfer to sidechain"
             );
-            require(
-                token.transferFrom(msg.sender, address(this), amount),
-                "Transfer failed"
-            );
+            token.safeTransferFrom(msg.sender, address(this), amount);
         }
         emit Deposit(to, amount, tokenAddress, sidechainAssetId);
     }
@@ -401,8 +421,8 @@ contract Bridge {
         uint8[] memory v,
         bytes32[] memory r,
         bytes32[] memory s
-    ) public shouldBeInitialized returns (bool) {
-        require(used[txHash] == false);
+    ) external shouldBeInitialized returns (bool) {
+        require(used[txHash] == false, "txHash already used");
         used[txHash] = true;
         require(
             checkSignatures(
@@ -441,8 +461,8 @@ contract Bridge {
         uint8[] memory v,
         bytes32[] memory r,
         bytes32[] memory s
-    ) public shouldBeInitialized returns (bool) {
-        require(used[txHash] == false);
+    ) external shouldBeInitialized returns (bool) {
+        require(used[txHash] == false, "txHash already used");
         used[txHash] = true;
         require(
             checkSignatures(
@@ -486,8 +506,8 @@ contract Bridge {
         uint8[] memory v,
         bytes32[] memory r,
         bytes32[] memory s
-    ) public shouldBeInitialized {
-        require(used[txHash] == false);
+    ) external shouldBeInitialized {
+        require(used[txHash] == false, "txHash already used");
         used[txHash] = true;
         require(
             checkSignatures(
@@ -539,12 +559,12 @@ contract Bridge {
         uint8[] memory v,
         bytes32[] memory r,
         bytes32[] memory s
-    ) public shouldBeInitialized {
+    ) external shouldBeInitialized {
         require(
             _sidechainTokens[sidechainAssetId] != address(0x0),
             "Sidechain asset is not registered"
         );
-        require(used[txHash] == false);
+        require(used[txHash] == false, "txHash already used");
         used[txHash] = true;
         require(
             checkSignatures(
@@ -586,15 +606,16 @@ contract Bridge {
         bytes32[] memory r,
         bytes32[] memory s
     ) private returns (bool) {
-        require(peersCount >= 1);
-        require(v.length == r.length);
-        require(r.length == s.length);
+        require(peersCount >= 1, "peersCount too low");
+        require(v.length == r.length, "v and r length mismatch");
+        require(r.length == s.length, "r and s length mismatch");
         uint256 needSigs = peersCount - (peersCount - 1) / 3;
-        require(s.length >= needSigs);
+        require(s.length >= needSigs, "not enough signatures");
 
         uint256 count = 0;
         address[] memory recoveredAddresses = new address[](s.length);
-        for (uint256 i = 0; i < s.length; ++i) {
+        uint256 signatureCount = s.length;
+        for (uint256 i; i < signatureCount; ++i) {
             address recoveredAddress = recoverAddress(hash, v[i], r[i], s[i]);
 
             // not a peer address or not unique
@@ -610,7 +631,7 @@ contract Bridge {
         }
 
         // restore state for future usages
-        for (uint256 i = 0; i < count; ++i) {
+        for (uint256 i; i < count; ++i) {
             _uniqueAddresses[recoveredAddresses[i]] = false;
         }
 
@@ -644,14 +665,14 @@ contract Bridge {
      * @param newAddress address of new peer
      */
     function addPeer(address newAddress) internal returns (uint256) {
-        require(isPeer[newAddress] == false);
+        require(isPeer[newAddress] == false, "peer already added");
         isPeer[newAddress] = true;
         ++peersCount;
         return peersCount;
     }
 
     function removePeer(address peerAddress) internal {
-        require(isPeer[peerAddress] == true);
+        require(isPeer[peerAddress] == true, "peer does not exists");
         isPeer[peerAddress] = false;
         --peersCount;
     }

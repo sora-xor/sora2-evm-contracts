@@ -1,5 +1,6 @@
-pragma solidity ^0.7.4;
-// "SPDX-License-Identifier: Apache License 2.0"
+// SPDX-License-Identifier: Apache 2.0
+
+pragma solidity ^0.8.0;
 
 import "./Bridge.sol";
 
@@ -10,6 +11,7 @@ contract BridgeDeployer {
     address[] public _initialPeers;
     address[] public _sidechainTokenAddresses;
     bytes32[] public _sidechainAssetIds;
+    address[] public _ERC20Addresses;
     Bridge public _bridge;
 
     event NewBridgeDeployed(address bridgeAddress);
@@ -25,6 +27,7 @@ contract BridgeDeployer {
         address[] memory initialPeers,
         address[] memory sidechainTokenAddresses,
         bytes32[] memory sidechainAssetIds,
+        address[] memory ERC20Addresses,
         address addressVAL,
         address addressXOR,
         bytes32 networkId
@@ -35,13 +38,15 @@ contract BridgeDeployer {
         _networkId = networkId;
         _sidechainAssetIds = sidechainAssetIds;
         _sidechainTokenAddresses = sidechainTokenAddresses;
+        _ERC20Addresses = ERC20Addresses;
     }
 
-    function deployBridgeContract() public {
+    function deployBridgeContract() external {
         _bridge = new Bridge(
             _initialPeers,
             _sidechainTokenAddresses,
             _sidechainAssetIds,
+            _ERC20Addresses,
             _addressVAL,
             _addressXOR,
             _networkId
