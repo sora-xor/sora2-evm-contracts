@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: Apache 2.0
 
-pragma solidity ^0.8.0;
+pragma solidity =0.8.13;
 
 import "./IERC20.sol";
-import "./SafeMath.sol";
 
 /**
  * @title Standard ERC20 token
@@ -18,8 +17,6 @@ import "./SafeMath.sol";
  * compliant implementations may not do it.
  */
 contract ERC20 is IERC20 {
-    using SafeMath for uint256;
-
     mapping(address => uint256) private _balances;
 
     mapping(address => mapping(address => uint256)) private _allowed;
@@ -103,7 +100,7 @@ contract ERC20 is IERC20 {
         uint256 value
     ) public override returns (bool) {
         _transfer(from, to, value);
-        _approve(from, msg.sender, _allowed[from][msg.sender].sub(value));
+        _approve(from, msg.sender, _allowed[from][msg.sender] - value);
         return true;
     }
 
@@ -124,7 +121,7 @@ contract ERC20 is IERC20 {
         _approve(
             msg.sender,
             spender,
-            _allowed[msg.sender][spender].add(addedValue)
+            _allowed[msg.sender][spender] + addedValue
         );
         return true;
     }
@@ -146,7 +143,7 @@ contract ERC20 is IERC20 {
         _approve(
             msg.sender,
             spender,
-            _allowed[msg.sender][spender].sub(subtractedValue)
+            _allowed[msg.sender][spender] - subtractedValue
         );
         return true;
     }
@@ -164,8 +161,8 @@ contract ERC20 is IERC20 {
     ) internal {
         require(to != address(0));
 
-        _balances[from] = _balances[from].sub(value);
-        _balances[to] = _balances[to].add(value);
+        _balances[from] = _balances[from] - value;
+        _balances[to] = _balances[to] + value;
         emit Transfer(from, to, value);
     }
 
@@ -179,8 +176,8 @@ contract ERC20 is IERC20 {
     function _mint(address account, uint256 value) internal {
         require(account != address(0));
 
-        _totalSupply = _totalSupply.add(value);
-        _balances[account] = _balances[account].add(value);
+        _totalSupply = _totalSupply + value;
+        _balances[account] = _balances[account] + value;
         emit Transfer(address(0), account, value);
     }
 
@@ -193,8 +190,8 @@ contract ERC20 is IERC20 {
     function _burn(address account, uint256 value) internal {
         require(account != address(0));
 
-        _totalSupply = _totalSupply.sub(value);
-        _balances[account] = _balances[account].sub(value);
+        _totalSupply = _totalSupply - value;
+        _balances[account] = _balances[account] - value;
         emit Transfer(account, address(0), value);
     }
 
@@ -226,6 +223,6 @@ contract ERC20 is IERC20 {
      */
     function _burnFrom(address account, uint256 value) internal {
         _burn(account, value);
-        _approve(account, msg.sender, _allowed[account][msg.sender].sub(value));
+        _approve(account, msg.sender, _allowed[account][msg.sender] - value);
     }
 }

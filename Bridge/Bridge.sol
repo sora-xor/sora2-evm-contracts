@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache 2.0
 
-pragma solidity ^0.8.0;
+pragma solidity =0.8.13;
 
 import "./MasterToken.sol";
 import "./Ownable.sol";
@@ -161,7 +161,6 @@ contract Bridge is EthTokenReciever {
         bytes32[] memory s
     ) external shouldBeInitialized {
         require(used[txHash] == false, "txHash already used");
-        used[txHash] = true;
         require(
             acceptedEthTokens[newToken] == false,
             "ERC20 token is not whitelisted"
@@ -184,6 +183,7 @@ contract Bridge is EthTokenReciever {
             ),
             "Peer signatures are invalid"
         );
+        used[txHash] = true;
         acceptedEthTokens[newToken] = true;
     }
 
@@ -204,7 +204,6 @@ contract Bridge is EthTokenReciever {
         bytes32[] memory s
     ) external shouldBeInitialized shouldNotBePreparedForMigration {
         require(used[salt] == false, "txHash already used");
-        used[salt] = true;
         require(
             preparedForMigration_ == false,
             "Bridge is not prepared for migration"
@@ -229,6 +228,7 @@ contract Bridge is EthTokenReciever {
             ),
             "Peer signatures are invalid"
         );
+        used[salt] = true;
         preparedForMigration_ = true;
         emit PreparedForMigration();
     }
@@ -254,7 +254,6 @@ contract Bridge is EthTokenReciever {
         bytes32[] memory s
     ) external shouldBeInitialized shouldBePreparedForMigration {
         require(used[salt] == false, "txHash already used");
-        used[salt] = true;
         require(
             address(this) == thisContractAddress,
             "Bridge contract address mismatch"
@@ -276,6 +275,7 @@ contract Bridge is EthTokenReciever {
             ),
             "Peer signatures are invalid"
         );
+        used[salt] = true;
         uint256 sidechainTokensCount = _sidechainTokenAddressArray.length;
         for (uint256 i; i < sidechainTokensCount; i++) {
             Ownable token = Ownable(_sidechainTokenAddressArray[i]);
@@ -319,7 +319,6 @@ contract Bridge is EthTokenReciever {
         bytes32[] memory s
     ) external shouldBeInitialized {
         require(used[txHash] == false, "txHash already used");
-        used[txHash] = true;
         require(
             checkSignatures(
                 keccak256(
@@ -338,6 +337,7 @@ contract Bridge is EthTokenReciever {
             ),
             "Peer signatures are invalid"
         );
+        used[txHash] = true;
         // Create new instance of the token
         MasterToken tokenInstance = new MasterToken(
             name,
@@ -383,11 +383,6 @@ contract Bridge is EthTokenReciever {
     ) external shouldBeInitialized shouldNotBePreparedForMigration {
         IERC20 token = IERC20(tokenAddress);
 
-        require(
-            token.allowance(msg.sender, address(this)) >= amount,
-            "NOT ENOUGH DELEGATED TOKENS ON SENDER BALANCE"
-        );
-
         bytes32 sidechainAssetId = _sidechainTokensByAddress[tokenAddress];
         if (
             sidechainAssetId != "" ||
@@ -401,7 +396,13 @@ contract Bridge is EthTokenReciever {
                 acceptedEthTokens[tokenAddress],
                 "The Token is not accepted for transfer to sidechain"
             );
+            uint256 balanceBefore = token.balanceOf(address(this));
             token.safeTransferFrom(msg.sender, address(this), amount);
+            uint256 balanceAfter = token.balanceOf(address(this));
+            require(
+                balanceAfter - balanceBefore >= amount,
+                "Not enough tokens transferred"
+            );
         }
         emit Deposit(to, amount, tokenAddress, sidechainAssetId);
     }
@@ -423,7 +424,6 @@ contract Bridge is EthTokenReciever {
         bytes32[] memory s
     ) external shouldBeInitialized returns (bool) {
         require(used[txHash] == false, "txHash already used");
-        used[txHash] = true;
         require(
             checkSignatures(
                 keccak256(
@@ -440,6 +440,7 @@ contract Bridge is EthTokenReciever {
             ),
             "Peer signatures are invalid"
         );
+        used[txHash] = true;
 
         addPeer(newPeerAddress);
         emit ChangePeers(newPeerAddress, false);
@@ -463,7 +464,6 @@ contract Bridge is EthTokenReciever {
         bytes32[] memory s
     ) external shouldBeInitialized returns (bool) {
         require(used[txHash] == false, "txHash already used");
-        used[txHash] = true;
         require(
             checkSignatures(
                 keccak256(
@@ -480,6 +480,7 @@ contract Bridge is EthTokenReciever {
             ),
             "Peer signatures are invalid"
         );
+        used[txHash] = true;
 
         removePeer(peerAddress);
         emit ChangePeers(peerAddress, true);
@@ -508,7 +509,6 @@ contract Bridge is EthTokenReciever {
         bytes32[] memory s
     ) external shouldBeInitialized {
         require(used[txHash] == false, "txHash already used");
-        used[txHash] = true;
         require(
             checkSignatures(
                 keccak256(
@@ -527,6 +527,7 @@ contract Bridge is EthTokenReciever {
             ),
             "Peer signatures are invalid"
         );
+        used[txHash] = true;
 
         if (tokenAddress == address(0)) {
             // untrusted transfer, relies on provided cryptographic proof
@@ -534,7 +535,7 @@ contract Bridge is EthTokenReciever {
         } else {
             IERC20 coin = IERC20(tokenAddress);
             // untrusted call, relies on provided cryptographic proof
-            require(coin.transfer(to, amount), "Transfer failed");
+            coin.safeTransfer(to, amount);
         }
         emit Withdrawal(txHash);
     }
@@ -565,7 +566,6 @@ contract Bridge is EthTokenReciever {
             "Sidechain asset is not registered"
         );
         require(used[txHash] == false, "txHash already used");
-        used[txHash] = true;
         require(
             checkSignatures(
                 keccak256(
@@ -584,6 +584,7 @@ contract Bridge is EthTokenReciever {
             ),
             "Peer signatures are invalid"
         );
+        used[txHash] = true;
 
         MasterToken tokenInstance = MasterToken(
             _sidechainTokens[sidechainAssetId]
@@ -612,7 +613,7 @@ contract Bridge is EthTokenReciever {
         uint256 needSigs = peersCount - (peersCount - 1) / 3;
         require(s.length >= needSigs, "not enough signatures");
 
-        uint256 count = 0;
+        uint256 count;
         address[] memory recoveredAddresses = new address[](s.length);
         uint256 signatureCount = s.length;
         for (uint256 i; i < signatureCount; ++i) {
