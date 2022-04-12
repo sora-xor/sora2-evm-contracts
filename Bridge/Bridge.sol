@@ -608,14 +608,20 @@ contract Bridge is EthTokenReciever {
         bytes32[] memory s
     ) private returns (bool) {
         require(peersCount >= 1, "peersCount too low");
-        require(v.length == r.length, "v and r length mismatch");
-        require(r.length == s.length, "r and s length mismatch");
+        uint256 signatureCount = v.length;
+        require(
+            signatureCount == r.length,
+            "signatureCount and r length mismatch"
+        );
+        require(
+            signatureCount == s.length,
+            "signatureCount and s length mismatch"
+        );
         uint256 needSigs = peersCount - (peersCount - 1) / 3;
-        require(s.length >= needSigs, "not enough signatures");
+        require(signatureCount >= needSigs, "not enough signatures");
 
         uint256 count;
-        address[] memory recoveredAddresses = new address[](s.length);
-        uint256 signatureCount = s.length;
+        address[] memory recoveredAddresses = new address[](signatureCount);
         for (uint256 i; i < signatureCount; ++i) {
             address recoveredAddress = recoverAddress(hash, v[i], r[i], s[i]);
 
@@ -627,7 +633,9 @@ contract Bridge is EthTokenReciever {
                 continue;
             }
             recoveredAddresses[count] = recoveredAddress;
-            count = count + 1;
+            unchecked {
+                count = count + 1;
+            }
             _uniqueAddresses[recoveredAddress] = true;
         }
 
