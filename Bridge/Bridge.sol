@@ -169,6 +169,7 @@ contract Bridge is EthTokenReciever {
             checkSignatures(
                 keccak256(
                     abi.encodePacked(
+                        address(this),
                         newToken,
                         ticker,
                         name,
@@ -323,6 +324,7 @@ contract Bridge is EthTokenReciever {
             checkSignatures(
                 keccak256(
                     abi.encodePacked(
+                        address(this),
                         name,
                         symbol,
                         decimals,
@@ -428,6 +430,7 @@ contract Bridge is EthTokenReciever {
             checkSignatures(
                 keccak256(
                     abi.encodePacked(
+                        address(this),
                         "addPeer",
                         newPeerAddress,
                         txHash,
@@ -468,6 +471,7 @@ contract Bridge is EthTokenReciever {
             checkSignatures(
                 keccak256(
                     abi.encodePacked(
+                        address(this),
                         "removePeer",
                         peerAddress,
                         txHash,
@@ -513,6 +517,7 @@ contract Bridge is EthTokenReciever {
             checkSignatures(
                 keccak256(
                     abi.encodePacked(
+                        address(this),
                         tokenAddress,
                         amount,
                         to,
@@ -570,6 +575,7 @@ contract Bridge is EthTokenReciever {
             checkSignatures(
                 keccak256(
                     abi.encodePacked(
+                        address(this),
                         sidechainAssetId,
                         amount,
                         to,

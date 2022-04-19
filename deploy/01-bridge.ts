@@ -52,4 +52,6 @@ module.exports = async ({
     log: true,
     autoMine: true,
   }, "deployBridgeContract")
+  let bridge = await deployments.read("BridgeDeployer", "_bridge")
+  console.log("Bridge", bridge)
 };
