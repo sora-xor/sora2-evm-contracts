@@ -34,6 +34,15 @@ contract Bridge is EthTokenReciever {
     mapping(address => bytes32) public _sidechainTokensByAddress;
     address[] public _sidechainTokenAddressArray;
 
+    /**
+     * For XOR and VAL use old token contracts, created for SORA 1 bridge.
+     * Also for XOR and VAL transfers from SORA 2 to Ethereum old bridges will be used.
+     */
+    address public immutable _addressVAL;
+    address public immutable _addressXOR;
+    /** EVM netowrk ID */
+    bytes32 public immutable _networkId;
+
     event Withdrawal(bytes32 txHash);
     event Deposit(
         bytes32 destination,
@@ -44,15 +53,6 @@ contract Bridge is EthTokenReciever {
     event ChangePeers(address peerId, bool removal);
     event PreparedForMigration();
     event Migrated(address to);
-
-    /**
-     * For XOR and VAL use old token contracts, created for SORA 1 bridge.
-     * Also for XOR and VAL transfers from SORA 2 to Ethereum old bridges will be used.
-     */
-    address public _addressVAL;
-    address public _addressXOR;
-    /** EVM netowrk ID */
-    bytes32 public _networkId;
 
     /**
      * Constructor.
@@ -74,20 +74,19 @@ contract Bridge is EthTokenReciever {
             sidechainAssetIds.length == sidechainTokenAddresses.length,
             "Length mismatch"
         );
-        uint256 initialPeersCount = initialPeers.length;
-        for (uint256 i; i < initialPeersCount; i++) {
+
+        for (uint256 i; i < initialPeers.length; i++) {
             addPeer(initialPeers[i]);
         }
         _addressXOR = addressXOR;
         _addressVAL = addressVAL;
         _networkId = networkId;
         initialized_ = true;
-        preparedForMigration_ = false;
 
         acceptedEthTokens[_addressXOR] = true;
         acceptedEthTokens[_addressVAL] = true;
-        uint256 tokensCount = sidechainTokenAddresses.length;
-        for (uint256 i; i < tokensCount; i++) {
+
+        for (uint256 i; i < sidechainTokenAddresses.length; i++) {
             address tokenAddress = sidechainTokenAddresses[i];
             bytes32 assetId = sidechainAssetIds[i];
             _sidechainTokens[assetId] = tokenAddress;
@@ -191,14 +190,12 @@ contract Bridge is EthTokenReciever {
     /**
      * Preparations for migration to new Bridge contract
      *
-     * @param thisContractAddress address of this bridge contract
      * @param salt unique data used for signature
      * @param v array of signatures of tx_hash (v-component)
      * @param r array of signatures of tx_hash (r-component)
      * @param s array of signatures of tx_hash (s-component)
      */
     function prepareForMigration(
-        address thisContractAddress,
         bytes32 salt,
         uint8[] memory v,
         bytes32[] memory r,
@@ -210,15 +207,11 @@ contract Bridge is EthTokenReciever {
             "Bridge is not prepared for migration"
         );
         require(
-            address(this) == thisContractAddress,
-            "Bridge contract address mismatch"
-        );
-        require(
             checkSignatures(
                 keccak256(
                     abi.encodePacked(
                         "prepareMigration",
-                        thisContractAddress,
+                        address(this),
                         salt,
                         _networkId
                     )
@@ -237,7 +230,6 @@ contract Bridge is EthTokenReciever {
     /**
      * Shutdown this contract and migrate tokens ownership to the new contract.
      *
-     * @param thisContractAddress this bridge contract address
      * @param salt unique data used for signature generation
      * @param newContractAddress address of the new bridge contract
      * @param erc20nativeTokens list of ERC20 tokens with non zero balances for this contract. Can be taken from substrate bridge peers.
@@ -246,7 +238,6 @@ contract Bridge is EthTokenReciever {
      * @param s array of signatures of tx_hash (s-component)
      */
     function shutDownAndMigrate(
-        address thisContractAddress,
         bytes32 salt,
         address payable newContractAddress,
         address[] calldata erc20nativeTokens,
@@ -256,14 +247,10 @@ contract Bridge is EthTokenReciever {
     ) external shouldBeInitialized shouldBePreparedForMigration {
         require(used[salt] == false, "txHash already used");
         require(
-            address(this) == thisContractAddress,
-            "Bridge contract address mismatch"
-        );
-        require(
             checkSignatures(
                 keccak256(
                     abi.encodePacked(
-                        thisContractAddress,
+                        address(this),
                         newContractAddress,
                         salt,
                         erc20nativeTokens,
