@@ -22,6 +22,7 @@ const getenv = (name: string) => {
 }
 
 const rinkebyPrivateKey = getenv("RINKEBY_PRIVATE_KEY");
+const sepoliaPrivateKey = getenv("SEPOLIA_PRIVATE_KEY");
 const gethPrivateKey = getenv("GETH_PRIVATE_KEY");
 const mainnetPrivateKey = getenv("MAINNET_PRIVATE_KEY");
 const infuraKey = getenv("INFURA_PROJECT_ID");
@@ -50,6 +51,11 @@ const config: HardhatUserConfig = {
       chainId: 4,
       url: `https://rinkeby.infura.io/v3/${infuraKey}`,
       accounts: [rinkebyPrivateKey],
+    },
+    sepolia: {
+      chainId: 11155111,
+      url: 'https://rpc.sepolia.org',
+      accounts: [sepoliaPrivateKey],
     },
     mainnet: {
       chainId: 1,
