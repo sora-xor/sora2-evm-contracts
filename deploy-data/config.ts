@@ -1,9 +1,9 @@
-class SidechainAsset {
+interface SidechainAsset {
     address: string;
     asset_id: string;
 }
 
-class DeployConfig {
+interface DeployConfig {
     xorAddress: string;
     valAddress: string;
     erc20Addresses: string[];

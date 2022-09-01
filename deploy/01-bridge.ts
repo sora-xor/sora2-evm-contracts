@@ -9,7 +9,6 @@ import { default as mainnetConfig } from "../deploy-data/mainnet"
 module.exports = async ({
   deployments,
   getUnnamedAccounts,
-  ethers,
   network
 }: HardhatRuntimeEnvironment) => {
   let [deployer] = await getUnnamedAccounts();
@@ -25,6 +24,9 @@ module.exports = async ({
     case "rinkeby":
       config = rinkebyConfig;
       break;
+    case "sepolia":
+      config = mainnetConfig;
+      break;
     case "geth":
       config = gethConfig;
       break;
@@ -35,7 +37,7 @@ module.exports = async ({
 
   let tokenAddresses = config.sidechainAssets.map((val) => val.address);
   let assetIds = config.sidechainAssets.map((val) => val.asset_id);
-  await deployments.deploy("BridgeDeployer", {
+  await deployments.deploy("Bridge", {
     from: deployer,
     log: true,
     autoMine: true,
@@ -46,12 +48,4 @@ module.exports = async ({
       '0x0000000000000000000000000000000000000000000000000000000000000000'
     ]
   });
-
-  await deployments.execute("BridgeDeployer", {
-    from: deployer,
-    log: true,
-    autoMine: true,
-  }, "deployBridgeContract")
-  let bridge = await deployments.read("BridgeDeployer", "_bridge")
-  console.log("Bridge", bridge)
 };
