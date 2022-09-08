@@ -203,10 +203,6 @@ contract Bridge is EthTokenReciever {
     ) external shouldBeInitialized shouldNotBePreparedForMigration {
         require(used[salt] == false, "txHash already used");
         require(
-            preparedForMigration_ == false,
-            "Bridge is not prepared for migration"
-        );
-        require(
             checkSignatures(
                 keccak256(
                     abi.encodePacked(
