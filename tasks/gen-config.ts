@@ -35,7 +35,9 @@ export async function main({ contractAddress, soraEndpoint, output, peers }) {
         } else if (asset.symbol == "VAL") {
             valAddress = asset.externalAddress;
         } else if (sidechainAssets.findIndex((value) => value.asset_id == asset.address) == -1) {
-            erc20Addresses.push(asset.externalAddress);
+            if (asset.externalAddress != "0x0000000000000000000000000000000000000000") {
+                erc20Addresses.push(asset.externalAddress);
+            }
         }
     }
     let config: DeployConfig = {

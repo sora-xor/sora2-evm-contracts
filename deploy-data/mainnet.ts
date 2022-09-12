@@ -21,7 +21,6 @@ const config: DeployConfig = {
     "erc20Addresses": [
         "0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9",
         "0xade00c28244d5ce17d72e40330b1c318cd12b7c3",
-        "0x8eb24319393716668d768dcec29356ae9cffe285",
         "0x8ab7404063ec4dbcfd4598215992dc3f8ec853d7",
         "0xdbdb4d16eda451d0503b854cf79d55697f90c8df",
         "0x27702a26126e0b3702af63ee09ac4d1a084ef628",
@@ -35,7 +34,6 @@ const config: DeployConfig = {
         "0x3472a5a71965499acd81997a54bba8d852c6e53d",
         "0xba100000625a3754423978a60c9317c58a424e3d",
         "0xba11d00c5f74255f56a5e366f4f77f5a186d7f55",
-        "0x0d8775f648430679a709e98d2b0cb6250d2887ef",
         "0x1f573d6fb3f13d689ff844b4ce37794d79a7ff1c",
         "0xd2dda223b2617cb616c1580db421e4cfae6a8a85",
         "0xcb97e65f07da24d46bcdd078ebebd7c6e6e3d750",
@@ -46,7 +44,6 @@ const config: DeployConfig = {
         "0xaaaebe6fe48e54f431b0c390cfaf0b017d09d42d",
         "0x4f9254c83eb525f9fcf346490bbb3ed28a81c667",
         "0x4ddc2d193948926d02f9b1fe9e1daa0718270ed5",
-        "0xba9d4199fab4f26efe3551d490e3821486f135ba",
         "0x3506424f91fd33084466f402d5d97f05f8e3b4af",
         "0xc00e94cb662c3520282e6f5717214004a7f26888",
         "0x115ec79f1de567ec68b7ae7eda501b406626478e",
@@ -55,7 +52,6 @@ const config: DeployConfig = {
         "0x32a7c02e79c4ea1008dd6564b35f131428673c41",
         "0xd533a949740bb3306d119cc777fa900ba034cd52",
         "0x35a18000230da775cac24873d00ff85bccded550",
-        "0x39aa39c021dfbae8fac545936693ac917d5e7563",
         "0xf650c3d88d12db855b8bf7d11be6c55a4e07dcc9",
         "0x41e5560054824ea6b0732e656e3ad64e20e94e45",
         "0x6b175474e89094c44da98b954eedeac495271d0f",
@@ -65,7 +61,6 @@ const config: DeployConfig = {
         "0xbf2179859fc6d5bee9bf9158632dc51678a4100e",
         "0xf629cbd94d3791c9250152bd8dfbdf380e2a3b9c",
         "0xbbc2ae13b23d715c30720f079fcd9b4a74093505",
-        "0x0000000000000000000000000000000000000000",
         "0xd33d0eb1c0c0295c3a2409a9101dd511823bf217",
         "0xa0246c9032bc3a600820415ae600c6388619a14d",
         "0x956f47f50a910163d8bf957cf5846d573e7f87ca",
@@ -83,7 +78,6 @@ const config: DeployConfig = {
         "0xe66747a101bff2dba3697199dcce5b743b454759",
         "0x0316eb71485b0ab14103307bf65a021042c6d380",
         "0x6c6ee5e31d828de241282b9606c8e98ea48526e2",
-        "0x6f259637dcd74c767781e37bc6133cd6a68aa161",
         "0xdf574c24545e5ffecb9a659c229253d4111d87e1",
         "0xb705268213d593b8fd88d3fdeff93aff5cbdcfae",
         "0xd9ec3ff1f8be459bb9369b4e79e9ebcf7141c093",
@@ -91,6 +85,7 @@ const config: DeployConfig = {
         "0x85eee30c52b0b379b046fb0f85f4f3dc3009afec",
         "0xdd974d5c2e2928dea5f71b9825b8b646686bd200",
         "0xcb4e8cafeda995da5cedfda5205bd5664a12b848",
+        "0xac1b818e9f1fb4e34413d631cb298fbc8a986f52",
         "0x67b6d479c7bb412c54e03dca8e1bc6740ce6b99c",
         "0x2af5d2ad76741191d15dfe7bf6ac92d4bd912ca3",
         "0x3e9bc21c9b189c09df3ef1b824798658d5011937",
@@ -181,6 +176,7 @@ const config: DeployConfig = {
         "0x5af2be193a6abca9c8817001f45744777db30756",
         "0xf411903cbc70a74d22900a5de66a2dda66507255",
         "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599",
+        "0xc221b7e65ffc80de234bbb6667abdd46593d34f0",
         "0x4691937a7508860f876c9c0a2a617e7d9e945d4b",
         "0x892a6f9df0147e5f079b0993f486f9aca3c87881",
         "0x6fcb6408499a7c0f242e32d77eb51ffa1dd28a7e",
@@ -193,7 +189,8 @@ const config: DeployConfig = {
     ],
     "peers": [
         "0x6C9E8391a0444c739e7e2edd37A2C6e3381b1cbF",
-        "0xEf22D478a53bc8BBe854ceF8bA2eb79C49A1a171"
+        "0xEf22D478a53bc8BBe854ceF8bA2eb79C49A1a171",
+        "0x6219d0ba6a0bafa69cd2b1b15633a3fd864dd371"
     ]
 };
 
