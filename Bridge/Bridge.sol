@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache 2.0
 
-pragma solidity =0.8.4;
+pragma solidity =0.8.17;
 
 import "./MasterToken.sol";
 import "./Ownable.sol";
