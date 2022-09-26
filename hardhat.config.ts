@@ -57,6 +57,11 @@ const config: HardhatUserConfig = {
       url: 'https://rpc.sepolia.org',
       accounts: [sepoliaPrivateKey],
     },
+    sepolia2: {
+      chainId: 11155111,
+      url: 'https://rpc.sepolia.org',
+      accounts: [sepoliaPrivateKey],
+    },
     mainnet: {
       chainId: 1,
       url: `https://mainnet.infura.io/v3/${infuraKey}`,
@@ -87,7 +92,25 @@ const config: HardhatUserConfig = {
     timeout: 60000
   },
   etherscan: {
-    apiKey: etherscanKey
+    apiKey: etherscanKey,
+    customChains: [
+      {
+        network: "sepolia",
+        chainId: 11155111,
+        urls: {
+          apiURL: "https://api-sepolia.etherscan.io/api",
+          browserURL: "https://sepolia.etherscan.io"
+        }
+      },
+      {
+        network: "sepolia",
+        chainId: 11155111,
+        urls: {
+          apiURL: "https://api-sepolia.etherscan.io/api",
+          browserURL: "https://sepolia.etherscan.io"
+        }
+      }
+    ]
   }
 };
 
