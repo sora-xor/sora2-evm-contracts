@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache 2.0
 
-pragma solidity =0.8.13;
+pragma solidity =0.8.17;
 
 import "./MasterToken.sol";
 import "./Ownable.sol";
@@ -83,8 +83,8 @@ contract Bridge is EthTokenReciever {
         _networkId = networkId;
         initialized_ = true;
 
-        acceptedEthTokens[_addressXOR] = true;
-        acceptedEthTokens[_addressVAL] = true;
+        acceptedEthTokens[addressXOR] = true;
+        acceptedEthTokens[addressVAL] = true;
 
         for (uint256 i; i < sidechainTokenAddresses.length; i++) {
             address tokenAddress = sidechainTokenAddresses[i];
