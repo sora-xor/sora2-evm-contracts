@@ -5,7 +5,7 @@ import { default as mainnetConfig } from "../deploy-data/mainnet"
 async function main() {
     const hh: HardhatRuntimeEnvironment = require("hardhat");
     const config = mainnetConfig;
-    const bridgeAddress = "0x5c9e99599Fdbbb261dA0BDe3b8daD5601d332E8F";
+    const bridgeAddress = "0x6F984C337aD5b7C2084805042AE942cef462e3ff";
     let tokenAddresses = config.sidechainAssets.map((val) => val.address);
     let assetIds = config.sidechainAssets.map((val) => val.asset_id);
     await hh.run("verify:verify", {
