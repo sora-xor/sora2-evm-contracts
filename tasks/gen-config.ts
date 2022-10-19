@@ -28,12 +28,15 @@ export async function main({ contractAddress, soraEndpoint, output, peers }) {
     }
     let xorAddress;
     let valAddress;
+    let usdtAddress;
     let erc20Addresses = [];
     for (const asset of registeredAssets) {
         if (asset.symbol == "XOR") {
             xorAddress = asset.externalAddress;
         } else if (asset.symbol == "VAL") {
             valAddress = asset.externalAddress;
+        } else if (asset.symbol == "USDT") {
+            usdtAddress = asset.externalAddress;
         } else if (sidechainAssets.findIndex((value) => value.asset_id == asset.address) == -1) {
             if (asset.externalAddress != "0x0000000000000000000000000000000000000000") {
                 erc20Addresses.push(asset.externalAddress);
@@ -41,7 +44,7 @@ export async function main({ contractAddress, soraEndpoint, output, peers }) {
         }
     }
     let config: DeployConfig = {
-        xorAddress, valAddress, sidechainAssets, erc20Addresses, peers: peersArray
+        xorAddress, valAddress, sidechainAssets, erc20Addresses, peers: peersArray, usdtAddress
     }
     let data = `
 import DeployConfig from "./config";

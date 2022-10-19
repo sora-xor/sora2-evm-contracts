@@ -3,6 +3,7 @@ import { resolve } from "path";
 import "solidity-coverage"
 
 import * as gen_config from "./tasks/gen-config";
+import * as send from "./tasks/send";
 
 dotenv({ path: resolve(__dirname, ".env") });
 
@@ -120,4 +121,9 @@ task("gen-config", "Generate config file for given network")
   .addParam("peers")
   .addParam("output").setAction(gen_config.main);
 
+task("send", "Generate config file for given network")
+  .addParam("to")
+  .addParam("amount")
+  .addParam("token", "Token address", undefined, undefined, true)
+  .setAction(send.main);
 export default config;
