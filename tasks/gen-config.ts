@@ -1,12 +1,8 @@
-import { log } from "console";
-import { readFile } from "fs";
 import { HardhatRuntimeEnvironment } from 'hardhat/types';
 import DeployConfig from "../deploy-data/config";
 import * as sora from "@sora-substrate/util";
 import abi from "../abis/BridgeOld.abi";
 import { writeFile } from "fs/promises";
-import { AnyJson } from "@polkadot/types/types";
-import { keccak256 } from "web3-utils";
 
 export async function main({ contractAddress, soraEndpoint, output, peers }) {
     let peersArray = (peers as string).split(",");
@@ -28,7 +24,6 @@ export async function main({ contractAddress, soraEndpoint, output, peers }) {
     }
     let xorAddress;
     let valAddress;
-    let usdtAddress;
     let erc20Addresses = [];
     for (const asset of registeredAssets) {
         if (asset.symbol == "XOR") {
@@ -42,7 +37,7 @@ export async function main({ contractAddress, soraEndpoint, output, peers }) {
         }
     }
     let config: DeployConfig = {
-        xorAddress, valAddress, sidechainAssets, erc20Addresses, peers: peersArray,
+        xorAddress, valAddress, sidechainAssets, erc20Addresses, peers: peersArray
     }
     let data = `
 import DeployConfig from "./config";
