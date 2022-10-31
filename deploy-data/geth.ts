@@ -3,7 +3,6 @@ import DeployConfig from "./config";
 const config: DeployConfig = {
     xorAddress: "0x0",
     valAddress: "0x0",
-    usdtAddress: undefined,
     erc20Addresses: [
         "0x0"
     ],

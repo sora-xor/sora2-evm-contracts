@@ -44,8 +44,6 @@ contract Bridge is EthTokenReciever {
     /** EVM netowrk ID */
     bytes32 public immutable _networkId;
 
-    IUSDT public immutable _addressUSDT;
-
     event Withdrawal(bytes32 txHash);
     event Deposit(
         bytes32 destination,
@@ -71,7 +69,6 @@ contract Bridge is EthTokenReciever {
         address[] memory erc20Addresses,
         address addressVAL,
         address addressXOR,
-        address addressUSDT,
         bytes32 networkId
     ) {
         require(
@@ -101,7 +98,6 @@ contract Bridge is EthTokenReciever {
         for (uint256 i; i < erc20TokensCount; i++) {
             acceptedEthTokens[erc20Addresses[i]] = true;
         }
-        _addressUSDT = IUSDT(addressUSDT);
     }
 
     modifier shouldBeInitialized() {
@@ -280,10 +276,6 @@ contract Bridge is EthTokenReciever {
                 token.balanceOf(address(this))
             );
         }
-        _addressUSDT.transfer(
-            newContractAddress,
-            _addressUSDT.balanceOf(address(this))
-        );
         EthTokenReciever(newContractAddress).receivePayment{
             value: address(this).balance
         }();
@@ -393,23 +385,13 @@ contract Bridge is EthTokenReciever {
                 acceptedEthTokens[tokenAddress],
                 "The Token is not accepted for transfer to sidechain"
             );
-            if (tokenAddress == address(_addressUSDT)) {
-                uint256 balanceBefore = _addressUSDT.balanceOf(address(this));
-                _addressUSDT.transferFrom(msg.sender, address(this), amount);
-                uint256 balanceAfter = _addressUSDT.balanceOf(address(this));
-                require(
-                    balanceAfter - balanceBefore >= amount,
-                    "Not enough tokens transferred"
-                );
-            } else {
-                uint256 balanceBefore = token.balanceOf(address(this));
-                token.safeTransferFrom(msg.sender, address(this), amount);
-                uint256 balanceAfter = token.balanceOf(address(this));
-                require(
-                    balanceAfter - balanceBefore >= amount,
-                    "Not enough tokens transferred"
-                );
-            }
+            uint256 balanceBefore = token.balanceOf(address(this));
+            token.safeTransferFrom(msg.sender, address(this), amount);
+            uint256 balanceAfter = token.balanceOf(address(this));
+            require(
+                balanceAfter - balanceBefore >= amount,
+                "Not enough tokens transferred"
+            );
         }
         emit Deposit(to, amount, tokenAddress, sidechainAssetId);
     }
@@ -544,13 +526,9 @@ contract Bridge is EthTokenReciever {
             // untrusted transfer, relies on provided cryptographic proof
             to.transfer(amount);
         } else {
-            if (tokenAddress == address(_addressUSDT)) {
-                _addressUSDT.transfer(to, amount);
-            } else {
-                IERC20 coin = IERC20(tokenAddress);
-                // untrusted call, relies on provided cryptographic proof
-                coin.safeTransfer(to, amount);
-            }
+            IERC20 coin = IERC20(tokenAddress);
+            // untrusted call, relies on provided cryptographic proof
+            coin.safeTransfer(to, amount);
         }
         emit Withdrawal(txHash);
     }

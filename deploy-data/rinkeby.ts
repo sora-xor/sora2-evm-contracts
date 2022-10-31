@@ -4,7 +4,6 @@ import DeployConfig from "./config";
 const config: DeployConfig = {
     "xorAddress": "0x83ba842e5e26a4eda2466891221187aabbc33692",
     "valAddress": "0x7fcb82ab5a4762f0f18287ece64d4ec74b6071c0",
-    usdtAddress: undefined,
     "sidechainAssets": [
         {
             "address": "0x4c8886E4B8d4bb146cbC03B851307FDDf869fe8B",

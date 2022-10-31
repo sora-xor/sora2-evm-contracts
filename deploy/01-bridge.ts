@@ -53,7 +53,7 @@ module.exports = async ({
     args: [
       config.peers,
       tokenAddresses, assetIds, config.erc20Addresses,
-      config.valAddress, config.xorAddress, config.usdtAddress,
+      config.valAddress, config.xorAddress,
       '0x0000000000000000000000000000000000000000000000000000000000000000'
     ]
   });

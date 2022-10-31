@@ -6,7 +6,6 @@ interface SidechainAsset {
 interface DeployConfig {
     xorAddress: string;
     valAddress: string;
-    usdtAddress: string;
     erc20Addresses: string[];
     sidechainAssets: SidechainAsset[];
     peers: string[];
