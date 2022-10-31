@@ -7,7 +7,6 @@ import "./Ownable.sol";
 import "./ERC20Burnable.sol";
 import "./SafeERC20.sol";
 import "./EthTokenReciever.sol";
-import "./IUSDT.sol";
 
 /**
  * Provides functionality of the HASHI bridge
