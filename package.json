@@ -7,7 +7,7 @@
   },
   "dependencies": {
     "@iarna/toml": "^2.2.5",
-    "@nomiclabs/hardhat-etherscan": "^2.1.4",
+    "@nomiclabs/hardhat-etherscan": "^3.1.0",
     "@openzeppelin/contracts": "^4.3.2",
     "@openzeppelin/test-helpers": "https://github.com/Snowfork/openzeppelin-test-helpers.git#3f9c4b8",
     "@sora-substrate/util": "^1.8.15",

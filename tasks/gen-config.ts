@@ -1,12 +1,8 @@
-import { log } from "console";
-import { readFile } from "fs";
 import { HardhatRuntimeEnvironment } from 'hardhat/types';
 import DeployConfig from "../deploy-data/config";
 import * as sora from "@sora-substrate/util";
 import abi from "../abis/BridgeOld.abi";
 import { writeFile } from "fs/promises";
-import { AnyJson } from "@polkadot/types/types";
-import { keccak256 } from "web3-utils";
 
 export async function main({ contractAddress, soraEndpoint, output, peers }) {
     let peersArray = (peers as string).split(",");

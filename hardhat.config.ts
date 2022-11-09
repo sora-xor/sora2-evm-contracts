@@ -3,6 +3,7 @@ import { resolve } from "path";
 import "solidity-coverage"
 
 import * as gen_config from "./tasks/gen-config";
+import * as send from "./tasks/send";
 
 dotenv({ path: resolve(__dirname, ".env") });
 
@@ -57,6 +58,11 @@ const config: HardhatUserConfig = {
       url: 'https://rpc.sepolia.org',
       accounts: [sepoliaPrivateKey],
     },
+    sepolia2: {
+      chainId: 11155111,
+      url: 'https://rpc.sepolia.org',
+      accounts: [sepoliaPrivateKey],
+    },
     mainnet: {
       chainId: 1,
       url: `https://mainnet.infura.io/v3/${infuraKey}`,
@@ -87,7 +93,7 @@ const config: HardhatUserConfig = {
     timeout: 60000
   },
   etherscan: {
-    apiKey: etherscanKey
+    apiKey: etherscanKey,
   }
 };
 
@@ -97,4 +103,9 @@ task("gen-config", "Generate config file for given network")
   .addParam("peers")
   .addParam("output").setAction(gen_config.main);
 
+task("send", "Generate config file for given network")
+  .addParam("to")
+  .addParam("amount")
+  .addParam("token", "Token address", undefined, undefined, true)
+  .setAction(send.main);
 export default config;

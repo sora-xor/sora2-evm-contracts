@@ -167,7 +167,8 @@ contract Bridge is EthTokenReciever {
         require(
             checkSignatures(
                 keccak256(
-                    abi.encodePacked(
+                    abi.encode(
+                        "addToken",
                         address(this),
                         newToken,
                         ticker,
@@ -205,7 +206,7 @@ contract Bridge is EthTokenReciever {
         require(
             checkSignatures(
                 keccak256(
-                    abi.encodePacked(
+                    abi.encode(
                         "prepareMigration",
                         address(this),
                         salt,
@@ -245,7 +246,8 @@ contract Bridge is EthTokenReciever {
         require(
             checkSignatures(
                 keccak256(
-                    abi.encodePacked(
+                    abi.encode(
+                        "migrate",
                         address(this),
                         newContractAddress,
                         salt,
@@ -306,7 +308,8 @@ contract Bridge is EthTokenReciever {
         require(
             checkSignatures(
                 keccak256(
-                    abi.encodePacked(
+                    abi.encode(
+                        "addAsset",
                         address(this),
                         name,
                         symbol,
@@ -412,9 +415,9 @@ contract Bridge is EthTokenReciever {
         require(
             checkSignatures(
                 keccak256(
-                    abi.encodePacked(
-                        address(this),
+                    abi.encode(
                         "addPeer",
+                        address(this),
                         newPeerAddress,
                         txHash,
                         _networkId
@@ -453,9 +456,9 @@ contract Bridge is EthTokenReciever {
         require(
             checkSignatures(
                 keccak256(
-                    abi.encodePacked(
-                        address(this),
+                    abi.encode(
                         "removePeer",
+                        address(this),
                         peerAddress,
                         txHash,
                         _networkId
@@ -499,7 +502,8 @@ contract Bridge is EthTokenReciever {
         require(
             checkSignatures(
                 keccak256(
-                    abi.encodePacked(
+                    abi.encode(
+                        "transfer",
                         address(this),
                         tokenAddress,
                         amount,
@@ -557,7 +561,8 @@ contract Bridge is EthTokenReciever {
         require(
             checkSignatures(
                 keccak256(
-                    abi.encodePacked(
+                    abi.encode(
+                        "transferOwned",
                         address(this),
                         sidechainAssetId,
                         amount,
