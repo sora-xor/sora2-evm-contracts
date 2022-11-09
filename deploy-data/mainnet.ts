@@ -16,6 +16,14 @@ const config: DeployConfig = {
         {
             "address": "0xc7D9c108D4E1dD1484D3e2568d7f74bfD763d356",
             "asset_id": "0x0200080000000000000000000000000000000000000000000000000000000000"
+        },
+        {
+            "address": "0x5E7F20e72C21f6D0Bf0A2814FD4164176401cf8e",
+            "asset_id": "0x00f2f4fda40a4bf1fc3769d156fa695532eec31e265d75068524462c0b80f674"
+        },
+        {
+            "address": "0xC60D6662027F5797Cf873bFe80BcF048e30Fc35e",
+            "asset_id": "0x0200090000000000000000000000000000000000000000000000000000000000"
         }
     ],
     "erc20Addresses": [
