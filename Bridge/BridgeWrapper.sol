@@ -1,44 +1,32 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
+import {IBridge} from "./IBridge.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-interface IBridge {
-    function receiveByEthereumAssetAddress(
-        address tokenAddress,
-        uint256 amount,
-        address payable to,
-        address from,
-        bytes32 txHash,
-        uint8[] calldata v,
-        bytes32[] calldata r,
-        bytes32[] calldata s
-    ) external;
-
-    function receiveBySidechainAssetId(
-        bytes32 sidechainAssetId,
-        uint256 amount,
-        address to,
-        address from,
-        bytes32 txHash,
-        uint8[] memory v,
-        bytes32[] memory r,
-        bytes32[] memory s
-    ) external;
-
-    function _sidechainTokensByAddress(address) external view returns (bytes32);
-}
-
+/**
+ * @title DraftBridgeWrapper
+ * @dev Contract to interface with an external bridge contract for asset transfers,
+ * and to distribute these assets (Ether or ERC20 tokens) to multiple recipients.
+ */
 contract DraftBridgeWrapper is ReentrancyGuard {
     using SafeERC20 for IERC20;
-
+    /// @dev Address of the Hashi Bridge
     IBridge public immutable bridgeContract;
 
+    /// @dev Error to indicate a failure with processing bridge receipt. Used in 'receiveAndDistribute'.
     error BridgeTransferFailed();
+    /// @dev Error to indicate a failure with distributing recied tokens or Ether. Used in 'receiveAndDistribute'.
     error DistributedAmountMismatch();
+    /// @dev Error to indicate a failure with sending Eth to a recipient. Used in 'distributeEther'.
+    error SendEtherFailed();
 
+    /**
+     * @dev Initializes the contract with an address of the bridge contract.
+     * @param _bridgeAddress Address of the bridge contract.
+     */
     constructor(address _bridgeAddress) {
         bridgeContract = IBridge(_bridgeAddress);
     }
@@ -56,18 +44,86 @@ contract DraftBridgeWrapper is ReentrancyGuard {
         uint256[] amounts;
     }
 
+    /**
+     * @dev Retrieves the sidechain token ID associated with a given Ethereum token address.
+     * @param tokenAddress Address of the Ethereum token.
+     * @return The sidechain token ID as bytes32.
+     */
+    function getSidechainTokenId(
+        address tokenAddress
+    ) public view returns (bytes32) {
+        return bridgeContract._sidechainTokensByAddress(tokenAddress);
+    }
+
+    /**
+     * @dev Retrieves the Ethereum address associated with a given sidechain token ID.
+     * @param sidechainId The ID of the sidechain token.
+     * @return The Ethereum address of the token.
+     */
+    function getSidechainTokenAddress(
+        bytes32 sidechainId
+    ) public view returns (address) {
+        return bridgeContract._sidechainTokens(sidechainId);
+    }
+
+    /**
+     * @dev Returns the balance of either Ether or an ERC20 token held by this contract.
+     * @param tokenAddress Address of the token (use address(0) for Ether).
+     * @return The balance of the token or Ether.
+     */
+    function getBalance(address tokenAddress) public view returns (uint256) {
+        if (tokenAddress == address(0)) {
+            return address(this).balance;
+        } else {
+            return IERC20(tokenAddress).balanceOf(address(this));
+        }
+    }
+
+    /**
+     * @dev Processes the receipt of assets from the bridge and distributes them accordingly.
+     * @dev Function doesn't work with deflationary tokens or tokens with modified 'balanceOf' function. 
+     * @param encodedData Encoded data containing receipt and distribution details.
+     */
     function receiveAndDistribute(
         bytes calldata encodedData
     ) external nonReentrant {
+        // Decoding receipt data
         DistributionData memory data = abi.decode(
             encodedData,
             (DistributionData)
         );
-        bytes32 sidechainId = bridgeContract._sidechainTokensByAddress(
-            data.tokenAddress
-        );
-        IERC20 token = IERC20(data.tokenAddress);
-        uint256 currentBallance = token.balanceOf(address(this));
+        // Fetching balances before processing transfer receipt
+        uint256 initialBalance = getBalance(data.tokenAddress);
+        // Processing receipt from the bridge
+        processBridgeReceipt(data);
+
+        // Verifing receipt of tokens or Ether
+        if (getBalance(data.tokenAddress) < initialBalance + data.amount) {
+            revert BridgeTransferFailed();
+        }
+
+        uint256 totalDistributed;
+        // Destiributing recieved tokens between specified array of users
+        if (data.tokenAddress == address(0)) {
+            totalDistributed = distributeEther(data.recipients, data.amounts);
+        } else {
+            totalDistributed = distributeTokens(
+                data.tokenAddress,
+                data.recipients,
+                data.amounts
+            );
+        }
+        // Verifing distribution of tokens or Ether 
+        if (totalDistributed != data.amount) revert DistributedAmountMismatch();
+    }
+
+    /**
+     * @dev Internal function to process asset receipt through the bridge.
+     * @param data Distribution data struct.
+     */
+    function processBridgeReceipt(DistributionData memory data) internal {
+        bytes32 sidechainId = getSidechainTokenId(data.tokenAddress);
+        // Processing receipt based on sidechain id
         if (sidechainId == bytes32(0)) {
             bridgeContract.receiveByEthereumAssetAddress(
                 data.tokenAddress,
@@ -91,16 +147,41 @@ contract DraftBridgeWrapper is ReentrancyGuard {
                 data.s
             );
         }
+    }
 
-        if (token.balanceOf(address(this)) < currentBallance + data.amount)
-            revert BridgeTransferFailed();
-
-        uint256 totalDistributed = 0;
-        for (uint i = 0; i < data.recipients.length; i++) {
-            totalDistributed += data.amounts[i];
-            token.safeTransfer(data.recipients[i], data.amounts[i]);
+    /**
+     * @dev Distributes Ether to specified recipients.
+     * @param recipients Array of recipient addresses.
+     * @param amounts Array of amounts to distribute.
+     * @return totalDistributed Total amount of Ether distributed.
+     */
+    function distributeEther(
+        address[] memory recipients,
+        uint256[] memory amounts
+    ) internal returns (uint256 totalDistributed) {
+        for (uint256 i = 0; i < recipients.length; i++) {
+            (bool success, ) = payable(recipients[i]).call{value: amounts[i]}("");
+            if (!success) revert SendEtherFailed();
+            totalDistributed += amounts[i];
         }
+    }
 
-        if (totalDistributed != data.amount) revert DistributedAmountMismatch();
+    /**
+     * @dev Distributes ERC20 tokens to specified recipients.
+     * @param tokenAddress Address of the ERC20 token to distribute.
+     * @param recipients Array of recipient addresses.
+     * @param amounts Array of amounts to distribute.
+     * @return totalDistributed Total amount of tokens distributed.
+     */
+    function distributeTokens(
+        address tokenAddress,
+        address[] memory recipients,
+        uint256[] memory amounts
+    ) internal returns (uint256 totalDistributed) {
+        IERC20 token = IERC20(tokenAddress);
+        for (uint256 i = 0; i < recipients.length; i++) {
+            token.safeTransfer(recipients[i], amounts[i]);
+            totalDistributed += amounts[i];
+        }
     }
 }
