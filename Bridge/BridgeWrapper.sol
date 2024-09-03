@@ -31,11 +31,22 @@ contract DraftBridgeWrapper is ReentrancyGuard {
         bridgeContract = IBridge(_bridgeAddress);
     }
 
+    /**  
+     * @dev Distribution data for recieving and distributing tokens.
+     * @param tokenAddress Address of the token to be transferred from the Bridge contract.
+     * @param amount Amount of tokens or ETH to be transferred.
+     * @param txHash Transaction hash on the source chain.
+     * @param v Array of final 1 byte of ECDSA signature.
+     * @param r Array of first 32 bytes of ECDSA signature.
+     * @param s Array of second 32 bytes of ECDSA signature.
+     * @param recipients Array of addresses which token or ETH to be transferred to.
+     * @param amounts Array of token or ETH amounts to be transferred to the recipients.
+     */
     struct DistributionData {
         address tokenAddress;
         uint256 amount;
-        address payable to;
-        address from;
+        address payable to; // can be dropped out in case of hardcoded values. See {processBridgeReceipt}
+        address from; // can be dropped out in case of hardcoded values. See {processBridgeReceipt}
         bytes32 txHash;
         uint8[] v;
         bytes32[] r;
@@ -81,7 +92,7 @@ contract DraftBridgeWrapper is ReentrancyGuard {
 
     /**
      * @dev Processes the receipt of assets from the bridge and distributes them accordingly.
-     * @dev Function doesn't work with deflationary tokens or tokens with modified 'balanceOf' function. 
+     * @dev Function doesn't work with deflationary tokens or tokens with modified 'balanceOf' function.
      * @param encodedData Encoded data containing receipt and distribution details.
      */
     function receiveAndDistribute(
@@ -113,7 +124,7 @@ contract DraftBridgeWrapper is ReentrancyGuard {
                 data.amounts
             );
         }
-        // Verifing distribution of tokens or Ether 
+        // Verifing distribution of tokens or Ether
         if (totalDistributed != data.amount) revert DistributedAmountMismatch();
     }
 
@@ -128,8 +139,8 @@ contract DraftBridgeWrapper is ReentrancyGuard {
             bridgeContract.receiveByEthereumAssetAddress(
                 data.tokenAddress,
                 data.amount,
-                data.to,
-                data.from,
+                data.to, // can be hardcoded to address(this)
+                data.from, // can be hardcoded to address(bridgeContract), not flexible in case of Hashi migration
                 data.txHash,
                 data.v,
                 data.r,
@@ -139,8 +150,8 @@ contract DraftBridgeWrapper is ReentrancyGuard {
             bridgeContract.receiveBySidechainAssetId(
                 sidechainId,
                 data.amount,
-                data.to,
-                data.from,
+                data.to, // can be hardcoded to address(this)
+                data.from, // can be hardcoded to address(bridgeContract), not flexible in case of Hashi migration
                 data.txHash,
                 data.v,
                 data.r,
