@@ -16,6 +16,8 @@ contract DraftBridgeWrapper is ReentrancyGuard {
     /// @dev Address of the Hashi Bridge
     IBridge public immutable bridgeContract;
 
+    error InvalidDistributionAmount();
+    error ArrayLengthMismatch();
     /// @dev Error to indicate a failure with processing bridge receipt. Used in 'receiveAndDistribute'.
     error BridgeTransferFailed();
     /// @dev Error to indicate a failure with distributing recied tokens or Ether. Used in 'receiveAndDistribute'.
@@ -31,28 +33,23 @@ contract DraftBridgeWrapper is ReentrancyGuard {
         bridgeContract = IBridge(_bridgeAddress);
     }
 
-    /**  
-     * @dev Distribution data for recieving and distributing tokens.
+    /**
+     * @dev Bridge receipt for recieving tokens.
      * @param tokenAddress Address of the token to be transferred from the Bridge contract.
      * @param amount Amount of tokens or ETH to be transferred.
      * @param txHash Transaction hash on the source chain.
      * @param v Array of final 1 byte of ECDSA signature.
      * @param r Array of first 32 bytes of ECDSA signature.
      * @param s Array of second 32 bytes of ECDSA signature.
-     * @param recipients Array of addresses which token or ETH to be transferred to.
-     * @param amounts Array of token or ETH amounts to be transferred to the recipients.
      */
-    struct DistributionData {
+    struct BridgeReceipt {
         address tokenAddress;
         uint256 amount;
-        address payable to; // can be dropped out in case of hardcoded values. See {processBridgeReceipt}
-        address from; // can be dropped out in case of hardcoded values. See {processBridgeReceipt}
+        address from;
         bytes32 txHash;
         uint8[] v;
         bytes32[] r;
         bytes32[] s;
-        address[] recipients;
-        uint256[] amounts;
     }
 
     /**
@@ -93,16 +90,19 @@ contract DraftBridgeWrapper is ReentrancyGuard {
     /**
      * @dev Processes the receipt of assets from the bridge and distributes them accordingly.
      * @dev Function doesn't work with deflationary tokens or tokens with modified 'balanceOf' function.
-     * @param encodedData Encoded data containing receipt and distribution details.
+     * @param encodedData Encoded data containing receipt details.
+     * @param recipients Array of addresses which token or ETH to be transferred to.
+     * @param amounts Array of token or ETH amounts to be transferred to the recipients.
      */
     function receiveAndDistribute(
-        bytes calldata encodedData
+        bytes calldata encodedData,
+        address[] calldata recipients,
+        uint256[] calldata amounts
     ) external nonReentrant {
+        if (recipients.length != amounts.length) revert ArrayLengthMismatch();
         // Decoding receipt data
-        DistributionData memory data = abi.decode(
-            encodedData,
-            (DistributionData)
-        );
+        BridgeReceipt memory data = abi.decode(encodedData, (BridgeReceipt));
+        if (data.amount == 0) revert InvalidDistributionAmount();
         // Fetching balances before processing transfer receipt
         uint256 initialBalance = getBalance(data.tokenAddress);
         // Processing receipt from the bridge
@@ -116,12 +116,12 @@ contract DraftBridgeWrapper is ReentrancyGuard {
         uint256 totalDistributed;
         // Destiributing recieved tokens between specified array of users
         if (data.tokenAddress == address(0)) {
-            totalDistributed = distributeEther(data.recipients, data.amounts);
+            totalDistributed = distributeEther(recipients, amounts);
         } else {
             totalDistributed = distributeTokens(
                 data.tokenAddress,
-                data.recipients,
-                data.amounts
+                recipients,
+                amounts
             );
         }
         // Verifing distribution of tokens or Ether
@@ -132,15 +132,15 @@ contract DraftBridgeWrapper is ReentrancyGuard {
      * @dev Internal function to process asset receipt through the bridge.
      * @param data Distribution data struct.
      */
-    function processBridgeReceipt(DistributionData memory data) internal {
+    function processBridgeReceipt(BridgeReceipt memory data) internal {
         bytes32 sidechainId = getSidechainTokenId(data.tokenAddress);
         // Processing receipt based on sidechain id
         if (sidechainId == bytes32(0)) {
             bridgeContract.receiveByEthereumAssetAddress(
                 data.tokenAddress,
                 data.amount,
-                data.to, // can be hardcoded to address(this)
-                data.from, // can be hardcoded to address(bridgeContract), not flexible in case of Hashi migration
+                payable(address(this)),
+                data.from,
                 data.txHash,
                 data.v,
                 data.r,
@@ -150,8 +150,8 @@ contract DraftBridgeWrapper is ReentrancyGuard {
             bridgeContract.receiveBySidechainAssetId(
                 sidechainId,
                 data.amount,
-                data.to, // can be hardcoded to address(this)
-                data.from, // can be hardcoded to address(bridgeContract), not flexible in case of Hashi migration
+                address(this),
+                data.from,
                 data.txHash,
                 data.v,
                 data.r,
@@ -167,11 +167,13 @@ contract DraftBridgeWrapper is ReentrancyGuard {
      * @return totalDistributed Total amount of Ether distributed.
      */
     function distributeEther(
-        address[] memory recipients,
-        uint256[] memory amounts
+        address[] calldata recipients,
+        uint256[] calldata amounts
     ) internal returns (uint256 totalDistributed) {
         for (uint256 i = 0; i < recipients.length; i++) {
-            (bool success, ) = payable(recipients[i]).call{value: amounts[i]}("");
+            (bool success, ) = payable(recipients[i]).call{value: amounts[i]}(
+                ""
+            );
             if (!success) revert SendEtherFailed();
             totalDistributed += amounts[i];
         }
@@ -186,8 +188,8 @@ contract DraftBridgeWrapper is ReentrancyGuard {
      */
     function distributeTokens(
         address tokenAddress,
-        address[] memory recipients,
-        uint256[] memory amounts
+        address[] calldata recipients,
+        uint256[] calldata amounts
     ) internal returns (uint256 totalDistributed) {
         IERC20 token = IERC20(tokenAddress);
         for (uint256 i = 0; i < recipients.length; i++) {
