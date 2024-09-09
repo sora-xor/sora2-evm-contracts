@@ -16,14 +16,40 @@ contract DraftBridgeWrapper is ReentrancyGuard {
     /// @dev Address of the Hashi Bridge
     IBridge public immutable bridgeContract;
 
+    // Custom Errors
+    /// @dev Error to indicate that the distribution amount is invalid.
     error InvalidDistributionAmount();
+    /// @dev Error to indicate that the lengths of recipients and amounts arrays do not match.
     error ArrayLengthMismatch();
-    /// @dev Error to indicate a failure with processing bridge receipt. Used in 'receiveAndDistribute'.
+    /// @dev Error to indicate a failure with processing bridge receipt in 'receiveAndDistribute'.
     error BridgeTransferFailed();
-    /// @dev Error to indicate a failure with distributing recied tokens or Ether. Used in 'receiveAndDistribute'.
+    /// @dev Error to indicate a failure with distributing received tokens or Ether in 'receiveAndDistribute'.
     error DistributedAmountMismatch();
-    /// @dev Error to indicate a failure with sending Eth to a recipient. Used in 'distributeEther'.
+    /// @dev Error to indicate a failure with sending Ether to a recipient in 'distributeEther'.
     error SendEtherFailed();
+
+    // Events
+    /// @dev Emitted when assets are received either from the bridge or from a wallet.
+    /// @param tokenAddress The address of the token received (address(0) for Ether).
+    /// @param amount The amount of tokens or Ether received.
+    /// @param from The address from which the assets were received.
+    event AssetsReceived(
+        address indexed tokenAddress,
+        uint256 amount,
+        address indexed from
+    );
+
+    /// @dev Emitted when assets are distributed to recipients.
+    /// @param tokenAddress The address of the token distributed (address(0) for Ether).
+    /// @param totalAmount The total amount of tokens or Ether distributed.
+    /// @param recipients The array of recipient addresses.
+    /// @param amounts The array of amounts distributed to each recipient.
+    event AssetsDistributed(
+        address indexed tokenAddress,
+        uint256 totalAmount,
+        address[] recipients,
+        uint256[] amounts
+    );
 
     /**
      * @dev Initializes the contract with an address of the bridge contract.
@@ -34,9 +60,9 @@ contract DraftBridgeWrapper is ReentrancyGuard {
     }
 
     /**
-     * @dev Bridge receipt for recieving tokens.
+     * @dev Bridge receipt for receiving tokens.
      * @param tokenAddress Address of the token to be transferred from the Bridge contract.
-     * @param amount Amount of tokens or ETH to be transferred.
+     * @param amount Amount of tokens or Ether to be transferred.
      * @param txHash Transaction hash on the source chain.
      * @param v Array of final 1 byte of ECDSA signature.
      * @param r Array of first 32 bytes of ECDSA signature.
@@ -91,7 +117,7 @@ contract DraftBridgeWrapper is ReentrancyGuard {
      * @dev Processes the receipt of assets from the bridge and distributes them accordingly.
      * @dev Function doesn't work with deflationary tokens or tokens with modified 'balanceOf' function.
      * @param encodedData Encoded data containing receipt details.
-     * @param recipients Array of addresses which token or ETH to be transferred to.
+     * @param recipients Array of addresses to which token or ETH should be transferred.
      * @param amounts Array of token or ETH amounts to be transferred to the recipients.
      */
     function receiveAndDistribute(
@@ -108,24 +134,69 @@ contract DraftBridgeWrapper is ReentrancyGuard {
         // Processing receipt from the bridge
         processBridgeReceipt(data);
 
-        // Verifing receipt of tokens or Ether
+        // Verifying receipt of tokens or Ether
         if (getBalance(data.tokenAddress) < initialBalance + data.amount) {
             revert BridgeTransferFailed();
         }
 
-        uint256 totalDistributed;
-        // Destiributing recieved tokens between specified array of users
-        if (data.tokenAddress == address(0)) {
-            totalDistributed = distributeEther(recipients, amounts);
+        emit AssetsReceived(data.tokenAddress, data.amount, data.from);
+        _distribute(data.tokenAddress, data.amount, recipients, amounts);
+    }
+
+    /**
+     * @dev Function to receive Ether or ERC20 tokens directly from a wallet and distribute them.
+     * @param tokenAddress Address of the token to be transferred (use address(0) for Ether).
+     * @param amount Amount of tokens or Ether to be received.
+     * @param recipients Array of addresses to which token or Ether should be transferred.
+     * @param amounts Array of token or Ether amounts to be transferred to the recipients.
+     */
+    function receiveFromWalletAndDistribute(
+        address tokenAddress,
+        uint256 amount,
+        address[] calldata recipients,
+        uint256[] calldata amounts
+    ) external payable nonReentrant {
+        if (recipients.length != amounts.length) revert ArrayLengthMismatch();
+        if (amount == 0) revert InvalidDistributionAmount();
+
+        uint256 initialBalance = getBalance(tokenAddress);
+
+        if (tokenAddress == address(0)) {
+            // For Ether, ensure the msg.value matches the amount
+            if (msg.value != amount) revert InvalidDistributionAmount();
         } else {
-            totalDistributed = distributeTokens(
-                data.tokenAddress,
-                recipients,
-                amounts
+            // For ERC20 tokens, transfer the tokens from the sender to this contract
+            IERC20(tokenAddress).safeTransferFrom(
+                msg.sender,
+                address(this),
+                amount
             );
         }
-        // Verifing distribution of tokens or Ether
-        if (totalDistributed != data.amount) revert DistributedAmountMismatch();
+
+        // Verifying receipt of tokens or Ether
+        if (getBalance(tokenAddress) < initialBalance + amount) {
+            revert BridgeTransferFailed();
+        }
+
+        emit AssetsReceived(tokenAddress, amount, msg.sender);
+        _distribute(tokenAddress, amount, recipients, amounts);
+    }
+
+    /**
+     * @dev Sweeps all Ether or ERC20 tokens sent to the contract by mistake to the specified recipient.
+     * @param tokenAddress Address of the token to be swept (use address(0) for Ether).
+     * @param recipient Address to which the swept tokens or Ether will be sent.
+     */
+    function sweep(address tokenAddress, address recipient) external {
+        uint256 balance = getBalance(tokenAddress);
+        if (tokenAddress == address(0)) {
+            // Sweep Ether
+            (bool success, ) = payable(recipient).call{value: balance}("");
+            if (!success) revert SendEtherFailed();
+        } else {
+            // Sweep ERC20 tokens
+            IERC20(tokenAddress).safeTransfer(recipient, balance);
+        }
     }
 
     /**
@@ -161,6 +232,34 @@ contract DraftBridgeWrapper is ReentrancyGuard {
     }
 
     /**
+     * @dev Internal function to distribute either Ether or ERC20 tokens to specified recipients.
+     * @param tokenAddress Address of the token (use address(0) for Ether).
+     * @param amount Amount of tokens or Ether to distribute.
+     * @param recipients Array of recipient addresses.
+     * @param amounts Array of amounts to distribute.
+     */
+    function _distribute(
+        address tokenAddress,
+        uint256 amount,
+        address[] calldata recipients,
+        uint256[] calldata amounts
+    ) internal {
+        uint256 totalDistributed;
+        if (tokenAddress == address(0)) {
+            totalDistributed = distributeEther(recipients, amounts);
+        } else {
+            totalDistributed = distributeTokens(
+                tokenAddress,
+                recipients,
+                amounts
+            );
+        }
+
+        if (totalDistributed != amount) revert DistributedAmountMismatch();
+        emit AssetsDistributed(tokenAddress, amount, recipients, amounts);
+    }
+
+    /**
      * @dev Distributes Ether to specified recipients.
      * @param recipients Array of recipient addresses.
      * @param amounts Array of amounts to distribute.
@@ -175,7 +274,9 @@ contract DraftBridgeWrapper is ReentrancyGuard {
                 ""
             );
             if (!success) revert SendEtherFailed();
-            totalDistributed += amounts[i];
+            unchecked {
+                totalDistributed += amounts[i];
+            }
         }
     }
 
@@ -194,7 +295,25 @@ contract DraftBridgeWrapper is ReentrancyGuard {
         IERC20 token = IERC20(tokenAddress);
         for (uint256 i = 0; i < recipients.length; i++) {
             token.safeTransfer(recipients[i], amounts[i]);
-            totalDistributed += amounts[i];
+            unchecked {
+                totalDistributed += amounts[i];
+            }
         }
+    }
+
+    /**
+     * @dev Fallback function to handle direct Ether transfers and calls to non-existent functions.
+     * This function will revert any transaction that doesn't match an existing function signature.
+     */
+    fallback() external payable {
+        revert("Fallback function called: function does not exist");
+    }
+
+    /**
+     * @dev Fallback function to handle direct Ether transfers.
+     * This function will revert any direct Ether transfer to the contract.
+     */
+    receive() external payable {
+        revert("Direct Ether transfers are not allowed");
     }
 }
