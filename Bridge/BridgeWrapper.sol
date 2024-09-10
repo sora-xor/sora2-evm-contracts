@@ -1,63 +1,25 @@
 // SPDX-License-Identifier: Apache License 2.0
 pragma solidity 0.8.25;
 
-import {IBridge} from "./IBridge.sol";
+import {IBridge} from "./interfaces/IBridge.sol";
+import {IBridgeWrapper} from "./interfaces/IBridgeWrapper.sol";
+import {IBridgeWrapperErrors} from "./interfaces/IBridgeWrapperErrors.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /**
- * @title DraftBridgeWrapper
+ * @title BridgeWrapper
  * @dev Contract to interface with an external bridge contract for asset transfers,
  * and to distribute these assets (Ether or ERC20 tokens) to multiple recipients.
  */
-contract DraftBridgeWrapper is ReentrancyGuard {
+contract BridgeWrapper is ReentrancyGuard, IBridgeWrapper, IBridgeWrapperErrors {
     using SafeERC20 for IERC20;
     /// @dev Address of the Hashi Bridge
     IBridge public immutable bridgeContract;
-
-    // Custom Errors
-    /// @dev Error to indicate that the distribution amount is invalid.
-    error InvalidDistributionAmount();
-    /// @dev Error to indicate that the lengths of recipients and amounts arrays do not match.
-    error ArrayLengthMismatch();
-    /// @dev Error to indicate a failure with processing bridge receipt in 'receiveAndDistribute'.
-    error BridgeTransferFailed();
-    /// @dev Error to indicate a failure with distributing received tokens or Ether in 'receiveAndDistribute'.
-    error DistributedAmountMismatch();
-    /// @dev Error to indicate a failure with sending Ether to a recipient in 'distributeEther'.
-    error SendEtherFailed();
-
-    // Events
-    /// @dev Emitted when assets are received either from the bridge or from a wallet.
-    /// @param tokenAddress The address of the token received (address(0) for Ether).
-    /// @param amount The amount of tokens or Ether received.
-    /// @param from The address from which the assets were received.
-    event AssetsReceived(
-        address indexed tokenAddress,
-        uint256 amount,
-        address indexed from
-    );
-
-    /// @dev Emitted when assets are distributed to recipients.
-    /// @param tokenAddress The address of the token distributed (address(0) for Ether).
-    /// @param totalAmount The total amount of tokens or Ether distributed.
-    /// @param recipients The array of recipient addresses.
-    /// @param amounts The array of amounts distributed to each recipient.
-    event AssetsDistributed(
-        address indexed tokenAddress,
-        uint256 totalAmount,
-        address[] recipients,
-        uint256[] amounts
-    );
-
-    /**
-     * @dev Initializes the contract with an address of the bridge contract.
-     * @param _bridgeAddress Address of the bridge contract.
-     */
-    constructor(address _bridgeAddress) {
-        bridgeContract = IBridge(_bridgeAddress);
-    }
+    /// @dev Mapping to store whitelist of admin addresses and count of admins
+    mapping(address => bool) public admins;
+    uint256 public adminCount;
 
     /**
      * @dev Bridge receipt for receiving tokens.
@@ -79,9 +41,70 @@ contract DraftBridgeWrapper is ReentrancyGuard {
     }
 
     /**
-     * @dev Retrieves the sidechain token ID associated with a given Ethereum token address.
-     * @param tokenAddress Address of the Ethereum token.
-     * @return The sidechain token ID as bytes32.
+     * @dev Initializes the contract with the address of the bridge contract and initial admin.
+     * @param _bridgeAddress Address of the bridge contract.
+     * @param initialAdmin Address of the initial admin.
+     */
+    constructor(address _bridgeAddress, address initialAdmin) {
+        if (_bridgeAddress == address(0)) revert InvalidAdminAddress();
+        if (initialAdmin == address(0)) revert InvalidAdminAddress();
+        
+        bridgeContract = IBridge(_bridgeAddress);
+        admins[initialAdmin] = true;
+        ++adminCount; // Add the initial admin
+    }
+
+    /**
+     * @dev Modifier to restrict access to admin-only functions.
+     */
+    modifier onlyAdmin() {
+        if (!admins[msg.sender]) revert NotAdmin();
+        _;
+    }
+
+    /**
+     * @dev Fallback function to handle direct Ether transfers and calls to non-existent functions.
+     * This function will revert any transaction that doesn't match an existing function signature.
+     */
+    fallback() external payable {
+        revert("Fallback function called: function does not exist");
+    }
+
+    /**
+     * @dev Fallback function to handle direct Ether transfers.
+     * This function will revert any direct Ether transfer to the contract.
+     */
+    receive() external payable {
+        revert("Direct Ether transfers are not allowed");
+    }
+
+    /**
+     * @inheritdoc IBridgeWrapper
+     */
+    function addAdmin(address admin) external onlyAdmin {
+        if (admin == address(0)) revert InvalidAdminAddress();
+        if (admins[admin]) revert AdminAlreadyExists();
+
+        admins[admin] = true;
+        ++adminCount;
+        emit AdminUpdated(admin, true);
+    }
+
+    /**
+     * @inheritdoc IBridgeWrapper
+     */
+    function removeAdmin(address admin) external onlyAdmin {
+        if (admin == address(0)) revert InvalidAdminAddress();
+        if (!admins[admin]) revert AdminDoesNotExist();
+        if (adminCount == 1) revert CannotRemoveLastAdmin();
+
+        admins[admin] = false;
+        adminCount--;
+        emit AdminUpdated(admin, false);
+    }
+
+    /**
+     * @inheritdoc IBridgeWrapper
      */
     function getSidechainTokenId(
         address tokenAddress
@@ -90,9 +113,7 @@ contract DraftBridgeWrapper is ReentrancyGuard {
     }
 
     /**
-     * @dev Retrieves the Ethereum address associated with a given sidechain token ID.
-     * @param sidechainId The ID of the sidechain token.
-     * @return The Ethereum address of the token.
+     * @inheritdoc IBridgeWrapper
      */
     function getSidechainTokenAddress(
         bytes32 sidechainId
@@ -101,9 +122,7 @@ contract DraftBridgeWrapper is ReentrancyGuard {
     }
 
     /**
-     * @dev Returns the balance of either Ether or an ERC20 token held by this contract.
-     * @param tokenAddress Address of the token (use address(0) for Ether).
-     * @return The balance of the token or Ether.
+     * @inheritdoc IBridgeWrapper
      */
     function getBalance(address tokenAddress) public view returns (uint256) {
         if (tokenAddress == address(0)) {
@@ -114,17 +133,13 @@ contract DraftBridgeWrapper is ReentrancyGuard {
     }
 
     /**
-     * @dev Processes the receipt of assets from the bridge and distributes them accordingly.
-     * @dev Function doesn't work with deflationary tokens or tokens with modified 'balanceOf' function.
-     * @param encodedData Encoded data containing receipt details.
-     * @param recipients Array of addresses to which token or ETH should be transferred.
-     * @param amounts Array of token or ETH amounts to be transferred to the recipients.
+     * @inheritdoc IBridgeWrapper
      */
     function receiveAndDistribute(
         bytes calldata encodedData,
         address[] calldata recipients,
         uint256[] calldata amounts
-    ) external nonReentrant {
+    ) external nonReentrant onlyAdmin {
         if (recipients.length != amounts.length) revert ArrayLengthMismatch();
         // Decoding receipt data
         BridgeReceipt memory data = abi.decode(encodedData, (BridgeReceipt));
@@ -144,11 +159,7 @@ contract DraftBridgeWrapper is ReentrancyGuard {
     }
 
     /**
-     * @dev Function to receive Ether or ERC20 tokens directly from a wallet and distribute them.
-     * @param tokenAddress Address of the token to be transferred (use address(0) for Ether).
-     * @param amount Amount of tokens or Ether to be received.
-     * @param recipients Array of addresses to which token or Ether should be transferred.
-     * @param amounts Array of token or Ether amounts to be transferred to the recipients.
+     * @inheritdoc IBridgeWrapper
      */
     function receiveFromWalletAndDistribute(
         address tokenAddress,
@@ -175,7 +186,7 @@ contract DraftBridgeWrapper is ReentrancyGuard {
 
         // Verifying receipt of tokens or Ether
         if (getBalance(tokenAddress) < initialBalance + amount) {
-            revert BridgeTransferFailed();
+            revert WalletTransferFailed();
         }
 
         emit AssetsReceived(tokenAddress, amount, msg.sender);
@@ -183,11 +194,9 @@ contract DraftBridgeWrapper is ReentrancyGuard {
     }
 
     /**
-     * @dev Sweeps all Ether or ERC20 tokens sent to the contract by mistake to the specified recipient.
-     * @param tokenAddress Address of the token to be swept (use address(0) for Ether).
-     * @param recipient Address to which the swept tokens or Ether will be sent.
+     * @inheritdoc IBridgeWrapper
      */
-    function sweep(address tokenAddress, address recipient) external {
+    function sweep(address tokenAddress, address recipient) external nonReentrant onlyAdmin {
         uint256 balance = getBalance(tokenAddress);
         if (tokenAddress == address(0)) {
             // Sweep Ether
@@ -299,21 +308,5 @@ contract DraftBridgeWrapper is ReentrancyGuard {
                 totalDistributed += amounts[i];
             }
         }
-    }
-
-    /**
-     * @dev Fallback function to handle direct Ether transfers and calls to non-existent functions.
-     * This function will revert any transaction that doesn't match an existing function signature.
-     */
-    fallback() external payable {
-        revert("Fallback function called: function does not exist");
-    }
-
-    /**
-     * @dev Fallback function to handle direct Ether transfers.
-     * This function will revert any direct Ether transfer to the contract.
-     */
-    receive() external payable {
-        revert("Direct Ether transfers are not allowed");
     }
 }
