@@ -145,12 +145,12 @@
 
 ### Performance and Stress Testing
 
-12. **High Volume Distribution:**
+11. **High Volume Distribution:**
     - **Large Number of Recipients:**
       - Testing `receiveAndDistribute` and `receiveFromWalletAndDistribute` with a large number of recipients.
       - Expected Behavior: Contract should handle the operation without running out of gas.
 
-13. **Large Token Amounts:**
+12. **Large Token Amounts:**
     - **High Value Transactions:**
       - Testing with large token amounts.
       - Expected Behavior: Correct handling without overflow issues.
