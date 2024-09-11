@@ -6,7 +6,7 @@
     "lint": "npx solhint 'contracts/**/*.sol'"
   },
   "dependencies": {
-    "@sora-substrate/util": "^1.8.15",
+    "@sora-substrate/util": "^1.40.2",
     "dotenv": "^16.4.5",
     "lodash": "^4.17.21",
     "merkletreejs": "^0.4.0",
