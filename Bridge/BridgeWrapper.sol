@@ -13,7 +13,11 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
  * @dev Contract to interface with an external bridge contract for asset transfers,
  * and to distribute these assets (Ether or ERC20 tokens) to multiple recipients.
  */
-contract BridgeWrapper is ReentrancyGuard, IBridgeWrapper, IBridgeWrapperErrors {
+contract BridgeWrapper is
+    ReentrancyGuard,
+    IBridgeWrapper,
+    IBridgeWrapperErrors
+{
     using SafeERC20 for IERC20;
     /// @dev Address of the Hashi Bridge
     IBridge public immutable bridgeContract;
@@ -42,14 +46,14 @@ contract BridgeWrapper is ReentrancyGuard, IBridgeWrapper, IBridgeWrapperErrors 
 
     /**
      * @dev Initializes the contract with the address of the bridge contract and initial admin.
-     * @param _bridgeAddress Address of the bridge contract.
+     * @param bridgeAddress Address of the bridge contract.
      * @param initialAdmin Address of the initial admin.
      */
-    constructor(address _bridgeAddress, address initialAdmin) {
-        if (_bridgeAddress == address(0)) revert InvalidAdminAddress();
+    constructor(address bridgeAddress, address initialAdmin) {
+        if (bridgeAddress == address(0)) revert InvalidAdminAddress();
         if (initialAdmin == address(0)) revert InvalidAdminAddress();
         
-        bridgeContract = IBridge(_bridgeAddress);
+        bridgeContract = IBridge(bridgeAddress);
         admins[initialAdmin] = true;
         ++adminCount; // Add the initial admin
     }
@@ -75,7 +79,7 @@ contract BridgeWrapper is ReentrancyGuard, IBridgeWrapper, IBridgeWrapperErrors 
      * This function will revert any direct Ether transfer to the contract.
      */
     receive() external payable {
-        revert("Direct Ether transfers are not allowed");
+        if (msg.sender != address(bridgeContract)) revert("Direct Ether transfers are not allowed");
     }
 
     /**
@@ -170,23 +174,21 @@ contract BridgeWrapper is ReentrancyGuard, IBridgeWrapper, IBridgeWrapperErrors 
         if (recipients.length != amounts.length) revert ArrayLengthMismatch();
         if (amount == 0) revert InvalidDistributionAmount();
 
-        uint256 initialBalance = getBalance(tokenAddress);
-
         if (tokenAddress == address(0)) {
             // For Ether, ensure the msg.value matches the amount
             if (msg.value != amount) revert InvalidDistributionAmount();
         } else {
+            uint256 initialBalance = getBalance(tokenAddress);
             // For ERC20 tokens, transfer the tokens from the sender to this contract
             IERC20(tokenAddress).safeTransferFrom(
                 msg.sender,
                 address(this),
                 amount
             );
-        }
-
-        // Verifying receipt of tokens or Ether
-        if (getBalance(tokenAddress) < initialBalance + amount) {
-            revert WalletTransferFailed();
+            // Verifying receipt of tokens or Ether
+            if (getBalance(tokenAddress) < initialBalance + amount) {
+                revert WalletTransferFailed();
+            }
         }
 
         emit AssetsReceived(tokenAddress, amount, msg.sender);
@@ -196,7 +198,11 @@ contract BridgeWrapper is ReentrancyGuard, IBridgeWrapper, IBridgeWrapperErrors 
     /**
      * @inheritdoc IBridgeWrapper
      */
-    function sweep(address tokenAddress, address recipient) external nonReentrant onlyAdmin {
+    function sweep(
+        address tokenAddress,
+        address recipient
+    ) external nonReentrant onlyAdmin {
+        if (recipient == address(0)) revert RecipientZeroAddress();
         uint256 balance = getBalance(tokenAddress);
         if (tokenAddress == address(0)) {
             // Sweep Ether

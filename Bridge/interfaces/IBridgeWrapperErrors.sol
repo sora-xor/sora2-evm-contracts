@@ -7,7 +7,10 @@ pragma solidity ^0.8.25;
  */
 interface IBridgeWrapperErrors {
     // Custom Errors
+    /// @dev Error to indicate that the bridge address was submitted as address(0) to the constructor. 
     error BridgeZeroAddress();
+    /// @dev Error to indicate that a recipient address was submitted as address(0).
+    error RecipientZeroAddress();
     /// @dev Error to indicate that the distribution amount is invalid.
     error InvalidDistributionAmount();
     /// @dev Error to indicate that the lengths of recipients and amounts arrays do not match.

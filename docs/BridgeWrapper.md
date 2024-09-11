@@ -8,6 +8,12 @@ The `BridgeWrapper` contract is designed to interface with an external bridge co
 
 ### Custom Errors
 
+- **BridgeZeroAddress()**
+  - Error to indicate that the bridge address was submitted as address(0) to the constructor.
+
+- **RecipientZeroAddress()**
+  - Error to indicate that a recipient address was submitted as address(0).
+
 - **InvalidDistributionAmount()**
   - Error to indicate that the distribution amount is invalid.
 

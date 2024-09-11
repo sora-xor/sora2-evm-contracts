@@ -7,6 +7,7 @@ import * as send from "./tasks/send";
 dotenv({ path: resolve(__dirname, ".env") });
 
 import '@nomicfoundation/hardhat-network-helpers';
+import '@nomicfoundation/hardhat-chai-matchers';
 import '@nomicfoundation/hardhat-ethers';
 import '@nomicfoundation/hardhat-verify';
 import 'hardhat-gas-reporter';
