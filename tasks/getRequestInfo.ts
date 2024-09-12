@@ -1,4 +1,5 @@
 import { task } from 'hardhat/config';
+import { ethers } from "hardhat";
 import * as sora from "@sora-substrate/util";
 
 task("getRequestInfo", "Fetches receipt info from approved bridge request")
@@ -8,8 +9,11 @@ task("getRequestInfo", "Fetches receipt info from approved bridge request")
     await sora.connection.open(soraEndpoint);
     sora.api.initialize();
     console.log("Connected to:", soraEndpoint);
-    let request = await sora.connection.api.rpc.ethBridge.getApprovedRequests([taskArgs.hash], {networkId: 0});
-    let response = request.value.toHuman();
+    const apiRequest = await sora.api.bridgeProxy.eth.getApprovedRequest(taskArgs.hash);
+    const rpcRequest = (await sora.connection.api.rpc.ethBridge.getApprovedRequests([taskArgs.hash], {networkId: 0})).asOk;
     //TODO
-    console.log("Tx approve info: ", JSON.stringify(response));
+    const assetIds = rpcRequest.map((res) => {
+      console.log(JSON.parse(JSON.stringify(res)))
+    })
+    console.log("Tx approve info: ", apiRequest);
   });
