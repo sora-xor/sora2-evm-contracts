@@ -9,11 +9,8 @@
     "@sora-substrate/util": "^1.40.2",
     "dotenv": "^16.4.5",
     "lodash": "^4.17.21",
-    "merkletreejs": "^0.4.0",
-    "rlp": "^3.0.0",
-    "secp256k1": "^4.0.2",
     "solc": "^0.7.6",
-    "solidity-docgen": "^0.5.16",
+    "solidity-docgen": "^0.5.17",
     "temp": "^0.9.1",
     "unique-filename": "^1.1.1"
   },
@@ -31,12 +28,12 @@
     "@types/node": "^22.5.2",
     "chai": "^4.2.0",
     "ethers": "^6.13.2",
-    "hardhat": "^2.22.10",
+    "hardhat": "^2.22.11",
     "hardhat-gas-reporter": "^2.1.1",
     "solidity-coverage": "^0.8.12",
     "hardhat-deploy": "^0.12.4",
-    "ts-node": "^10.9.0",
+    "ts-node": "^10.9.2",
     "typechain": "^8.3.2",
-    "typescript": "^5.4.5"
+    "typescript": "^5.6.2"
   }
 }
