@@ -3,8 +3,7 @@ import { resolve } from "path";
 
 import * as gen_config from "./tasks/gen-config";
 import * as send from "./tasks/send";
-import "./tasks/deployWrapper.ts";
-import "./tasks/getRequestInfo";
+import "./tasks/index.ts";
 
 dotenv({ path: resolve(__dirname, ".env") });
 
