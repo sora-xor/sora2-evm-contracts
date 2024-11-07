@@ -2,7 +2,7 @@
 
 pragma solidity =0.8.17;
 
-import "./IERC20.sol";
+import "./interfaces/IERC20.sol";
 
 /**
  * @title Standard ERC20 token

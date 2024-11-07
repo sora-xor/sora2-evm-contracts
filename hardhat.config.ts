@@ -1,16 +1,19 @@
 import { config as dotenv } from "dotenv";
 import { resolve } from "path";
-import "solidity-coverage"
 
 import * as gen_config from "./tasks/gen-config";
 import * as send from "./tasks/send";
+import "./tasks/index.ts";
 
 dotenv({ path: resolve(__dirname, ".env") });
 
-import "@nomiclabs/hardhat-truffle5";
-import "@nomiclabs/hardhat-ethers";
-import "@nomiclabs/hardhat-web3";
-import "@nomiclabs/hardhat-etherscan";
+import '@nomicfoundation/hardhat-network-helpers';
+import '@nomicfoundation/hardhat-chai-matchers';
+import '@nomicfoundation/hardhat-ethers';
+import '@nomicfoundation/hardhat-verify';
+import 'hardhat-gas-reporter';
+import '@typechain/hardhat';
+import "solidity-coverage";
 import "hardhat-deploy";
 import { HardhatUserConfig, task } from "hardhat/config";
 
@@ -22,7 +25,6 @@ const getenv = (name: string) => {
   }
 }
 
-const rinkebyPrivateKey = getenv("RINKEBY_PRIVATE_KEY");
 const sepoliaPrivateKey = getenv("SEPOLIA_PRIVATE_KEY");
 const gethPrivateKey = getenv("GETH_PRIVATE_KEY");
 const mainnetPrivateKey = getenv("MAINNET_PRIVATE_KEY");
@@ -47,11 +49,6 @@ const config: HardhatUserConfig = {
       url: "http://127.0.0.1:8545",
       chainId: 4224,
       accounts: [gethPrivateKey],
-    },
-    rinkeby: {
-      chainId: 4,
-      url: `https://rinkeby.infura.io/v3/${infuraKey}`,
-      accounts: [rinkebyPrivateKey],
     },
     sepolia: {
       chainId: 11155111,
@@ -79,7 +76,17 @@ const config: HardhatUserConfig = {
             runs: 200
           }
         }
-      }
+      },
+      {
+        version: "0.8.25",
+        settings: {
+          evmVersion: `cancun`,
+          optimizer: {
+            enabled: true,
+            runs: 200
+          }
+        }
+      },
     ],
   },
   paths: {
@@ -94,7 +101,12 @@ const config: HardhatUserConfig = {
   },
   etherscan: {
     apiKey: etherscanKey,
-  }
+  },
+  typechain: {
+    outDir: './typechain',
+    target: 'ethers-v6',
+    dontOverrideCompile: false,
+  },
 };
 
 task("gen-config", "Generate config file for given network")
